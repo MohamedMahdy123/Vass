@@ -95,7 +95,8 @@ class FreeTryOnService {
   Future<String> _upload(Uint8List bytes, String filename) async {
     final req = http.MultipartRequest('POST', Uri.parse('$_host/upload'))
       ..files.add(http.MultipartFile.fromBytes('files', bytes, filename: filename));
-    final resp = await http.Response.fromStream(await req.send());
+    // Route through the injected client so it stays testable/offline-safe.
+    final resp = await http.Response.fromStream(await _client.send(req));
     final list = jsonDecode(resp.body) as List;
     return list.first as String;
   }

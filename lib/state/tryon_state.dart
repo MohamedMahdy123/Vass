@@ -5,7 +5,8 @@ import '../data/models/catalog_item.dart';
 import '../data/models/tryon.dart';
 import '../data/tryon_repository.dart';
 import '../services/tryon_service.dart';
-export '../services/tryon_service.dart' show TryOnQuotaException;
+export '../services/tryon_service.dart'
+    show TryOnQuotaException, TryOnEngineUnavailableException;
 
 /// Drives the virtual try-on feature: browsing the catalog, running a render
 /// (person photo + garment), and holding the result. Backed by Supabase when
@@ -141,6 +142,10 @@ class TryOnState extends ChangeNotifier {
       _error = e.limit != null
           ? "You've used all ${e.limit} free try-ons this month."
           : "You've reached your monthly free try-on limit.";
+    } on TryOnEngineUnavailableException {
+      _error = 'The free try-on engine is busy or over its limit right now. '
+          'Please try again in a little while — or connect the paid engine for '
+          'instant renders.';
     } catch (_) {
       _error = "Try-on didn't work this time. Please try again.";
     } finally {

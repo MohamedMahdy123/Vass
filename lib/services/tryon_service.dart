@@ -6,12 +6,9 @@ import 'free_tryon_service.dart';
 
 /// The result of a try-on render.
 class TryOnResult {
-  const TryOnResult({required this.bytes, required this.model, required this.isDemo});
+  const TryOnResult({required this.bytes, required this.model});
   final Uint8List bytes;
   final String model;
-
-  /// True when produced by the local demo stand-in rather than the real engine.
-  final bool isDemo;
 }
 
 /// Thrown when the user has hit their monthly free try-on limit (HTTP 429 from
@@ -23,6 +20,15 @@ class TryOnQuotaException implements Exception {
 
   @override
   String toString() => 'TryOnQuotaException(used: $used, limit: $limit)';
+}
+
+/// Thrown when no engine could produce a render — the paid engine isn't
+/// configured and the free engine is down or over its (free-GPU) limit. The UI
+/// asks the user to try again later rather than showing a fake result.
+class TryOnEngineUnavailableException implements Exception {
+  const TryOnEngineUnavailableException();
+  @override
+  String toString() => 'TryOnEngineUnavailableException';
 }
 
 /// Runs a virtual try-on. It prefers the paid FASHN engine (via the `try-on`
@@ -68,7 +74,6 @@ class TryOnService {
           return TryOnResult(
             bytes: base64Decode(data['resultImageBase64'] as String),
             model: (data['model'] as String?) ?? 'fashn',
-            isDemo: false,
           );
         }
         // Reachable but unusable (e.g. FAL_KEY not set → 500): fall through to
@@ -89,10 +94,11 @@ class TryOnService {
         garmentBytes: garmentBytes,
         garmentDescription: garmentDescription ?? 'a garment',
       );
-      return TryOnResult(bytes: bytes, model: FreeTryOnService.engineName, isDemo: false);
+      return TryOnResult(bytes: bytes, model: FreeTryOnService.engineName);
     } catch (_) {
-      // Last resort — an honest stand-in (person photo, flagged as demo).
-      return TryOnResult(bytes: personBytes, model: 'demo', isDemo: true);
+      // Both engines unavailable — tell the user honestly instead of faking a
+      // result with their own photo.
+      throw const TryOnEngineUnavailableException();
     }
   }
 }

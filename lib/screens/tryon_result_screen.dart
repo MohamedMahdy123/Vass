@@ -81,11 +81,26 @@ class TryOnResultScreen extends StatelessWidget {
     if (result == null || result.resultBytes == null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            state.error ?? 'Something went wrong. Please try again.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: kSans, fontSize: 14, color: t.ink2),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.hourglass_empty, size: 34, color: t.ink3),
+              const SizedBox(height: 16),
+              Text(
+                state.error ?? 'Something went wrong. Please try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontFamily: kSans, fontSize: 14, height: 1.5, color: t.ink2),
+              ),
+              const SizedBox(height: 20),
+              AccentButton(
+                label: 'Back to garments',
+                onTap: () {
+                  context.read<TryOnState>().clearResult();
+                  Navigator.of(context).maybePop();
+                },
+              ),
+            ],
           ),
         ),
       );
@@ -93,50 +108,14 @@ class TryOnResultScreen extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.memory(result.resultBytes!, fit: BoxFit.cover),
-          // Honest badge: the demo stand-in isn't a real render.
-          if (result.model == 'demo')
-            Positioned(
-              left: 14,
-              top: 14,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.55),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text('DEMO PREVIEW',
-                    style: TextStyle(
-                      fontFamily: kSans,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1,
-                      color: Colors.white,
-                    )),
-              ),
-            ),
-        ],
-      ),
+      child: Image.memory(result.resultBytes!, fit: BoxFit.cover, width: double.infinity),
     );
   }
 
   Widget _actions(BuildContext context, TryOnState state) {
     final t = context.vess;
-    final isDemo = state.result?.model == 'demo';
     return Column(
       children: [
-        if (isDemo)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'This is a demo stand-in. Add the try-on engine key to get a real render.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: kSans, fontSize: 12, color: t.ink3),
-            ),
-          ),
         Row(
           children: [
             Expanded(
