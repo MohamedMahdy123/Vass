@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
 import '../widgets/item_image.dart';
+import 'builder_screen.dart';
 import 'item_detail_screen.dart';
 import 'shell.dart';
 
@@ -85,6 +86,27 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
 
           _StylistPrompt(onTap: () => Shell.of(context)?.goTo(3)),
+          const SizedBox(height: 12),
+
+          VessCard(
+            radius: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const BuilderScreen()),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.dashboard_customize_outlined, size: 20, color: t.accent),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Build a look yourself',
+                      style: TextStyle(
+                          fontFamily: kSans, fontSize: 14.5, color: t.ink)),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: t.ink3),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
 
           Row(

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock_data.dart';
-import '../state/app_state.dart';
+import '../state/stylist_state.dart';
+import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 
-/// AI stylist chat. Replies are canned — see [AppState].
+/// Starter prompts, grounded in real styling questions.
+const _kQuickPrompts = [
+  'What should I wear to work?',
+  'Something for a dinner tonight',
+  "It's cold out today",
+  'Style around my favourites',
+];
+
+/// AI stylist chat over the user's real wardrobe — see [StylistState].
 class StylistScreen extends StatefulWidget {
   const StylistScreen({super.key});
 
@@ -19,6 +27,13 @@ class _StylistScreenState extends State<StylistScreen> {
   final _scroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => context.read<WardrobeState>().load());
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scroll.dispose();
@@ -29,7 +44,8 @@ class _StylistScreenState extends State<StylistScreen> {
     final text = preset ?? _controller.text;
     if (text.trim().isEmpty) return;
     _controller.clear();
-    await context.read<AppState>().send(text);
+    final wardrobe = context.read<WardrobeState>().items;
+    await context.read<StylistState>().send(text, wardrobe);
     if (!mounted) return;
     // Jump to the newest message once the reply lands.
     if (_scroll.hasClients) {
@@ -44,7 +60,7 @@ class _StylistScreenState extends State<StylistScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
-    final state = context.watch<AppState>();
+    final state = context.watch<StylistState>();
 
     return SafeArea(
       bottom: false,
@@ -95,7 +111,7 @@ class _StylistScreenState extends State<StylistScreen> {
                       style: eyebrow(t.ink3, size: 11)
                           .copyWith(letterSpacing: 1.2)),
                   const SizedBox(height: 10),
-                  for (final p in kQuickPrompts) ...[
+                  for (final p in _kQuickPrompts) ...[
                     GestureDetector(
                       onTap: () => _send(p),
                       child: Container(
