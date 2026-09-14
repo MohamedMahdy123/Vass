@@ -13,6 +13,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const FAL_MODEL = Deno.env.get("FAL_MODEL") ?? "fal-ai/fashn/tryon/v1.6";
+const FREE_LIMIT = Number(Deno.env.get("FREE_TRYON_LIMIT") ?? "10");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -27,7 +28,26 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: "Not authenticated" }, 401);
 
-    // TODO(T3): enforce free-tier try-on quota here (usage_events kind='tryon').
+    // Service-role client for the usage log (clients can't write usage_events).
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Free-tier quota: count this calendar month's try-ons for the user.
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const { count } = await admin
+      .from("usage_events")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("kind", "tryon")
+      .gte("created_at", monthStart.toISOString());
+    const used = count ?? 0;
+    if (used >= FREE_LIMIT) {
+      return json({ error: "Monthly free try-on limit reached", used, limit: FREE_LIMIT }, 429);
+    }
 
     const {
       personImageBase64,
@@ -79,6 +99,9 @@ Deno.serve(async (req) => {
     const imgRes = await fetch(resultUrl);
     const buf = new Uint8Array(await imgRes.arrayBuffer());
     const resultImageBase64 = base64Encode(buf);
+
+    // Log the successful render against the user's quota (best-effort).
+    await admin.from("usage_events").insert({ user_id: user.id, kind: "tryon" });
 
     return json({
       model: FAL_MODEL,

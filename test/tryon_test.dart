@@ -50,7 +50,7 @@ void main() {
       expect(st.result!.status, TryOnStatus.succeeded);
     });
 
-    test('clearResult resets between try-ons', () async {
+    test('clearResult resets the result but keeps history', () async {
       final st = TryOnState();
       await st.run(
         personBytes: person,
@@ -62,6 +62,24 @@ void main() {
       st.clearResult();
       expect(st.hasResult, isFalse);
       expect(st.result, isNull);
+      // History survives so the strip still shows past renders.
+      expect(st.hasHistory, isTrue);
+    });
+
+    test('each run is recorded in history, newest first', () async {
+      final st = TryOnState();
+      expect(st.hasHistory, isFalse);
+
+      await st.run(
+          personBytes: person, garmentBytes: garment,
+          source: GarmentSource.catalog, garmentCatalogId: 'cat-1');
+      await st.run(
+          personBytes: person, garmentBytes: garment,
+          source: GarmentSource.upload);
+
+      expect(st.history.length, 2);
+      expect(st.history.first.garmentSource, GarmentSource.upload); // newest first
+      expect(st.history.last.garmentCatalogId, 'cat-1');
     });
   });
 

@@ -13,6 +13,17 @@ class TryOnResult {
   final bool isDemo;
 }
 
+/// Thrown when the user has hit their monthly free try-on limit (HTTP 429 from
+/// the Edge Function). Carries the numbers so the UI can be specific.
+class TryOnQuotaException implements Exception {
+  const TryOnQuotaException({this.used, this.limit});
+  final int? used;
+  final int? limit;
+
+  @override
+  String toString() => 'TryOnQuotaException(used: $used, limit: $limit)';
+}
+
 /// Runs a virtual try-on. Live, it calls the `try-on` Edge Function (FASHN via
 /// fal.ai, key server-side); in demo mode — or if the engine isn't configured
 /// yet — it returns a stand-in so the whole capture → result flow is walkable.
@@ -37,6 +48,14 @@ class TryOnService {
           },
         );
         final data = res.data;
+        // 429 = monthly free limit reached: surface it, don't silently fake it.
+        if (res.status == 429) {
+          final d = data is Map ? data : const {};
+          throw TryOnQuotaException(
+            used: d['used'] as int?,
+            limit: d['limit'] as int?,
+          );
+        }
         if (data is Map && data['resultImageBase64'] is String) {
           return TryOnResult(
             bytes: base64Decode(data['resultImageBase64'] as String),
@@ -46,8 +65,10 @@ class TryOnService {
         }
         // Reachable but unusable (e.g. FAL_KEY not set → 500): fall through to
         // the demo stand-in rather than blocking the flow.
+      } on TryOnQuotaException {
+        rethrow; // let the state show the quota message
       } catch (_) {
-        // Network / function error — same graceful fallback.
+        // Network / function error — graceful demo fallback below.
       }
     }
 

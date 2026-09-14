@@ -57,7 +57,9 @@ class _TryOnScreenState extends State<TryOnScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WardrobeState>().load();
-      context.read<TryOnState>().loadCatalog();
+      final tryOn = context.read<TryOnState>();
+      tryOn.loadCatalog();
+      tryOn.loadHistory();
     });
   }
 
@@ -159,6 +161,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
+    final tryOn = context.watch<TryOnState>();
 
     return SafeArea(
       bottom: false,
@@ -176,6 +179,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
               ],
             ),
           ),
+          if (tryOn.hasHistory) _HistoryStrip(history: tryOn.history),
           const SizedBox(height: 14),
           // Garment source selector.
           Padding(
@@ -202,7 +206,13 @@ class _TryOnScreenState extends State<TryOnScreen> {
     return VessChip(
       label: label,
       active: _source == s,
-      onTap: () => setState(() => _source = s),
+      // Switching source clears the prior pick so the CTA reflects the new tab.
+      onTap: () => setState(() {
+        if (_source != s) {
+          _source = s;
+          _selected = null;
+        }
+      }),
     );
   }
 
@@ -395,6 +405,95 @@ class _TryOnScreenState extends State<TryOnScreen> {
         expand: true,
         trailing: ready ? Icons.camera_alt_outlined : null,
         onTap: ready ? _startTryOn : null,
+      ),
+    );
+  }
+}
+
+/// A horizontal strip of past try-on renders, tap to view full-size.
+class _HistoryStrip extends StatelessWidget {
+  const _HistoryStrip({required this.history});
+  final List<TryOn> history;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text('YOUR TRY-ONS',
+                style: eyebrow(t.ink3, size: 11).copyWith(letterSpacing: 1.2)),
+          ),
+          SizedBox(
+            height: 92,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: history.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) => _HistoryThumb(tryOn: history[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryThumb extends StatelessWidget {
+  const _HistoryThumb({required this.tryOn});
+  final TryOn tryOn;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return GestureDetector(
+      onTap: () => _view(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 68,
+          height: 92,
+          child: _image(context, fit: BoxFit.cover) ??
+              Container(color: t.sand2, child: Icon(Icons.checkroom, color: t.ink3)),
+        ),
+      ),
+    );
+  }
+
+  Widget? _image(BuildContext context, {BoxFit fit = BoxFit.cover}) {
+    if (tryOn.resultBytes != null) {
+      return Image.memory(tryOn.resultBytes!, fit: fit);
+    }
+    final path = tryOn.resultImagePath;
+    if (path != null && path.isNotEmpty) {
+      return FutureBuilder<String>(
+        future: TryOnRepository().signedUrl(path),
+        builder: (context, snap) => snap.hasData
+            ? Image.network(snap.data!, fit: fit)
+            : const ColoredBox(color: Color(0x11000000)),
+      );
+    }
+    return null;
+  }
+
+  void _view(BuildContext context) {
+    final img = _image(context, fit: BoxFit.contain);
+    if (img == null) return;
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).maybePop(),
+          child: img,
+        ),
       ),
     );
   }

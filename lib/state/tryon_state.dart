@@ -5,6 +5,7 @@ import '../data/models/catalog_item.dart';
 import '../data/models/tryon.dart';
 import '../data/tryon_repository.dart';
 import '../services/tryon_service.dart';
+export '../services/tryon_service.dart' show TryOnQuotaException;
 
 /// Drives the virtual try-on feature: browsing the catalog, running a render
 /// (person photo + garment), and holding the result. Backed by Supabase when
@@ -14,17 +15,24 @@ class TryOnState extends ChangeNotifier {
   final _service = TryOnService();
 
   List<CatalogItem> _catalog = const [];
+  List<TryOn> _history = [];
   bool _loadingCatalog = false;
   bool _running = false;
+  bool _quotaReached = false;
   String? _error;
   TryOn? _result;
 
   List<CatalogItem> get catalog => List.unmodifiable(_catalog);
+  List<TryOn> get history => List.unmodifiable(_history);
   bool get loadingCatalog => _loadingCatalog;
   bool get running => _running;
+
+  /// True once the monthly free try-on limit has been hit this session.
+  bool get quotaReached => _quotaReached;
   String? get error => _error;
   TryOn? get result => _result;
   bool get hasResult => _result != null && _result!.isDone;
+  bool get hasHistory => _history.isNotEmpty;
 
   bool get isLive =>
       SupabaseService.isReady &&
@@ -43,6 +51,16 @@ class TryOnState extends ChangeNotifier {
       _loadingCatalog = false;
       notifyListeners();
     }
+  }
+
+  /// Load past try-ons for the history view. Live reads from Postgres; demo
+  /// keeps whatever was rendered this session in memory.
+  Future<void> loadHistory() async {
+    if (!isLive) return; // demo history is already in memory
+    try {
+      _history = await _repo.history();
+      notifyListeners();
+    } catch (_) {/* non-fatal */}
   }
 
   void clearResult() {
@@ -74,6 +92,7 @@ class TryOnState extends ChangeNotifier {
         garmentBytes: garmentBytes,
         category: category,
       );
+      _quotaReached = false;
 
       var tryOn = TryOn(
         garmentSource: source,
@@ -112,6 +131,12 @@ class TryOnState extends ChangeNotifier {
       }
 
       _result = tryOn;
+      _history.insert(0, tryOn); // newest first, for the history view
+    } on TryOnQuotaException catch (e) {
+      _quotaReached = true;
+      _error = e.limit != null
+          ? "You've used all ${e.limit} free try-ons this month."
+          : "You've reached your monthly free try-on limit.";
     } catch (_) {
       _error = "Try-on didn't work this time. Please try again.";
     } finally {
