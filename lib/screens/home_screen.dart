@@ -1,0 +1,593 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../data/models/item.dart';
+import '../services/outfit_engine.dart';
+import '../state/recommendation_state.dart';
+import '../state/wardrobe_state.dart';
+import '../theme/app_theme.dart';
+import '../theme/tokens.dart';
+import '../widgets/common.dart';
+import '../widgets/item_image.dart';
+import 'item_detail_screen.dart';
+import 'shell.dart';
+
+/// Home — the daily hero: "What should I wear today?". Real recommendation over
+/// the user's own wardrobe ([WardrobeState]), with the AI's reason and
+/// accept / try-again that feed back into the recommender.
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  static const _occasions = ['Everyday', 'Work', 'Smart', 'Casual', 'Formal'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    final wardrobe = context.read<WardrobeState>();
+    final rec = context.read<RecommendationState>();
+    await wardrobe.load();
+    if (!mounted) return;
+    if (!rec.hasOutfit && !rec.generating) {
+      await rec.generate(wardrobe.items);
+    }
+  }
+
+  Future<void> _regenerateFor(String occasion) async {
+    final wardrobe = context.read<WardrobeState>();
+    final rec = context.read<RecommendationState>()..setOccasion(occasion);
+    await rec.generate(wardrobe.items);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    final wardrobe = context.watch<WardrobeState>();
+    final rec = context.watch<RecommendationState>();
+
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 108),
+        children: [
+          const SizedBox(height: 8),
+          _Header(onProfile: () => Shell.of(context)?.goTo(4)),
+          const SizedBox(height: 18),
+
+          // Occasion selector — drives what the recommender optimizes for.
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _occasions.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final o = _occasions[i];
+                return VessChip(
+                  label: o,
+                  active: rec.occasion == o,
+                  onTap: () => _regenerateFor(o),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _RecommendationCard(wardrobe: wardrobe, rec: rec),
+          const SizedBox(height: 14),
+
+          _StylistPrompt(onTap: () => Shell.of(context)?.goTo(3)),
+          const SizedBox(height: 20),
+
+          Row(
+            children: [
+              Expanded(
+                child: VessCard(
+                  padding: const EdgeInsets.all(18),
+                  radius: 20,
+                  onTap: () => Shell.of(context)?.goTo(1),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _CardLabel('Closet', t.ink3),
+                      const SizedBox(height: 8),
+                      Text('${wardrobe.count}',
+                          style: serif(context, 34).copyWith(height: 1)),
+                      const SizedBox(height: 4),
+                      Text('pieces · tap to browse',
+                          style: TextStyle(
+                              fontFamily: kSans, fontSize: 12.5, color: t.ink2)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: VessCard(
+                  padding: const EdgeInsets.all(18),
+                  radius: 20,
+                  onTap: () => Shell.of(context)?.goTo(1),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _CardLabel('Add pieces', t.ink3),
+                      const SizedBox(height: 8),
+                      Icon(Icons.add_a_photo_outlined, size: 30, color: t.accent),
+                      const SizedBox(height: 6),
+                      Text('Scan or add manually',
+                          style: TextStyle(
+                              fontFamily: kSans, fontSize: 12.5, color: t.ink2)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.onProfile});
+  final VoidCallback onProfile;
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String get _today {
+    const days = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June', 'July',
+      'August', 'September', 'October', 'November', 'December'
+    ];
+    final now = DateTime.now();
+    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_today,
+                  style: TextStyle(
+                    fontFamily: kSans,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: t.ink3,
+                  )),
+              const SizedBox(height: 2),
+              Text(_greeting, style: serif(context, 30).copyWith(height: 1.1)),
+            ],
+          ),
+        ),
+        GestureDetector(
+          onTap: onProfile,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: t.line),
+              gradient: LinearGradient(
+                begin: const Alignment(-0.8, -0.9),
+                end: const Alignment(0.8, 0.9),
+                colors: t.ob2,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.person_outline, color: Colors.white, size: 22),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The hero card: today's recommended outfit, its pieces, and the "why".
+class _RecommendationCard extends StatelessWidget {
+  const _RecommendationCard({required this.wardrobe, required this.rec});
+
+  final WardrobeState wardrobe;
+  final RecommendationState rec;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+
+    // Not enough to build a look yet.
+    if (wardrobe.count < RecommendationState.minItems && !wardrobe.loading) {
+      return _EmptyState(needed: RecommendationState.minItems - wardrobe.count);
+    }
+
+    if (rec.generating && !rec.hasOutfit) {
+      return const _LoadingCard();
+    }
+
+    final outfit = rec.today;
+    if (outfit == null) {
+      return VessCard(
+        radius: 24,
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('No look yet', style: serif(context, 22)),
+            const SizedBox(height: 6),
+            Text(
+              rec.error ?? 'Tap below to build today\'s outfit.',
+              style: TextStyle(fontFamily: kSans, fontSize: 13.5, color: t.ink2),
+            ),
+            const SizedBox(height: 16),
+            AccentButton(
+              label: 'Build my outfit',
+              expand: true,
+              onTap: () => rec.generate(wardrobe.items),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final pieces = rec.todayItems;
+
+    return VessCard(
+      padding: EdgeInsets.zero,
+      radius: 26,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("TODAY'S OUTFIT",
+                          style: eyebrow(t.accent, size: 12)
+                              .copyWith(letterSpacing: 1.7)),
+                      const SizedBox(height: 5),
+                      Text(outfit.title, style: serif(context, 24)),
+                    ],
+                  ),
+                ),
+                // Refresh for a different valid look.
+                _RoundIcon(
+                  icon: Icons.refresh,
+                  busy: rec.generating,
+                  onTap: rec.generating ? null : () => rec.tryAgain(wardrobe.items),
+                ),
+              ],
+            ),
+          ),
+
+          // The pieces.
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: pieces.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) => _PieceTile(item: pieces[i]),
+            ),
+          ),
+
+          // The "why".
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: t.accentSoft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.auto_awesome, size: 17, color: t.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      outfit.reason,
+                      style: TextStyle(
+                        fontFamily: kSans,
+                        fontSize: 13.5,
+                        height: 1.5,
+                        color: t.ink2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Accept / not today.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => rec.reject(wardrobe.items),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      side: BorderSide(color: t.line),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text('Not today',
+                        style: TextStyle(
+                          fontFamily: kSans,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: t.ink2,
+                        )),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AccentButton(
+                    label: 'Wear it',
+                    expand: true,
+                    trailing: Icons.check,
+                    onTap: () async {
+                      // Capture before the await so we don't reach across the gap.
+                      final messenger = ScaffoldMessenger.of(context);
+                      await rec.accept(wardrobe.items);
+                      messenger
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(SnackBar(
+                          backgroundColor: t.ink,
+                          content: Text('Logged — enjoy your day',
+                              style: TextStyle(fontFamily: kSans, color: t.bg)),
+                        ));
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PieceTile extends StatelessWidget {
+  const _PieceTile({required this.item});
+  final Item item;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    final slot = OutfitEngine.slotOf(item);
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ItemDetailScreen(itemId: item.id)),
+      ),
+      child: SizedBox(
+        width: 108,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ItemImage(
+                item: item,
+                radius: 16,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.28),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      slot.toUpperCase(),
+                      style: const TextStyle(
+                        fontFamily: kSans,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: kSans,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: t.ink,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return VessCard(
+      radius: 26,
+      padding: const EdgeInsets.symmetric(vertical: 54),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: t.accent),
+          ),
+          const SizedBox(height: 16),
+          Text('Styling your day…',
+              style: TextStyle(fontFamily: kSans, fontSize: 13.5, color: t.ink2)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.needed});
+  final int needed;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return VessCard(
+      radius: 26,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.checkroom_outlined, size: 34, color: t.accent),
+          const SizedBox(height: 14),
+          Text('Let\'s fill your closet', style: serif(context, 24)),
+          const SizedBox(height: 8),
+          Text(
+            'Add about $needed more ${needed == 1 ? 'piece' : 'pieces'} and I\'ll '
+            'start recommending outfits from your own wardrobe each morning.',
+            style: TextStyle(
+                fontFamily: kSans, fontSize: 13.5, height: 1.5, color: t.ink2),
+          ),
+          const SizedBox(height: 18),
+          AccentButton(
+            label: 'Add pieces',
+            expand: true,
+            trailing: Icons.arrow_forward,
+            onTap: () => Shell.of(context)?.goTo(1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon({required this.icon, required this.onTap, this.busy = false});
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: t.accentSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        alignment: Alignment.center,
+        child: busy
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2.2, color: t.accent),
+              )
+            : Icon(icon, size: 20, color: t.accent),
+      ),
+    );
+  }
+}
+
+class _CardLabel extends StatelessWidget {
+  const _CardLabel(this.text, this.color);
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: TextStyle(
+          fontFamily: kSans,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+          color: color,
+        ),
+      );
+}
+
+class _StylistPrompt extends StatelessWidget {
+  const _StylistPrompt({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return VessCard(
+      radius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 20, color: t.accent),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Ask your stylist anything…',
+                style: TextStyle(fontFamily: kSans, fontSize: 14.5, color: t.ink3)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(
+              color: t.accentSoft,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text('Quick AI',
+                style: TextStyle(
+                  fontFamily: kSans,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: t.accent,
+                )),
+          ),
+        ],
+      ),
+    );
+  }
+}
