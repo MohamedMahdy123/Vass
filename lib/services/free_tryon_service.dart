@@ -15,19 +15,50 @@ import 'package:http/http.dart' as http;
 /// result image. CORS is permitted, so this runs directly from the client on
 /// web and mobile alike.
 class FreeTryOnService {
-  FreeTryOnService({http.Client? client}) : _client = client ?? http.Client();
+  FreeTryOnService({http.Client? client, Duration? retryDelay})
+      : _client = client ?? http.Client(),
+        _retryDelay = retryDelay ?? const Duration(seconds: 6);
 
   static const _host = 'https://yisol-idm-vton.hf.space';
   final http.Client _client;
+  final Duration _retryDelay;
 
   static const engineName = 'idm-vton';
 
+  /// Render, retrying once on a transient error (free GPUs occasionally hiccup
+  /// or briefly rate-limit). A hard quota exhaustion won't recover in-window —
+  /// callers fall back to the stand-in in that case.
   Future<Uint8List> render({
     required Uint8List personBytes,
     required Uint8List garmentBytes,
     String garmentDescription = 'a garment',
     int denoiseSteps = 30,
     int seed = 42,
+  }) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await _renderOnce(
+          personBytes: personBytes,
+          garmentBytes: garmentBytes,
+          garmentDescription: garmentDescription,
+          denoiseSteps: denoiseSteps,
+          seed: seed + attempt,
+        );
+      } catch (e) {
+        lastError = e;
+        if (attempt == 0) await Future<void>.delayed(_retryDelay);
+      }
+    }
+    throw lastError!;
+  }
+
+  Future<Uint8List> _renderOnce({
+    required Uint8List personBytes,
+    required Uint8List garmentBytes,
+    required String garmentDescription,
+    required int denoiseSteps,
+    required int seed,
   }) async {
     final personPath = await _upload(personBytes, 'person.png');
     final garmentPath = await _upload(garmentBytes, 'garment.png');

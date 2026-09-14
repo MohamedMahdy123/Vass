@@ -17,6 +17,7 @@ void main() {
   TryOnService offlineService() => TryOnService(
         freeEngine: FreeTryOnService(
           client: MockClient((_) async => http.Response('offline', 503)),
+          retryDelay: Duration.zero,
         ),
       );
 
