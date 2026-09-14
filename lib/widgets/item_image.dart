@@ -45,11 +45,28 @@ class ItemImage extends StatelessWidget {
       );
     }
 
-    // Photo path only meaningful against a live backend.
-    if (item.imagePath == null || !SupabaseService.isReady) return swatch;
+    final path = item.imagePath;
+
+    // A full URL (e.g. the demo wardrobe / catalog) renders directly.
+    if (path != null && (path.startsWith('http://') || path.startsWith('https://'))) {
+      return ClipRRect(
+        borderRadius: r,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(path, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => swatch),
+            if (child != null) child!,
+          ],
+        ),
+      );
+    }
+
+    // A storage path is only meaningful against a live backend.
+    if (path == null || !SupabaseService.isReady) return swatch;
 
     return FutureBuilder<String>(
-      future: WardrobeRepository().signedUrl(item.imagePath!),
+      future: WardrobeRepository().signedUrl(path),
       builder: (context, snap) {
         if (!snap.hasData) return swatch;
         return ClipRRect(
