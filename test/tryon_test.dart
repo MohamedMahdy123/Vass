@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:vess/data/models/catalog_item.dart';
 import 'package:vess/data/models/tryon.dart';
+import 'package:vess/services/free_tryon_service.dart';
 import 'package:vess/services/tryon_service.dart';
 import 'package:vess/state/tryon_state.dart';
 
@@ -9,9 +12,17 @@ void main() {
   final person = Uint8List.fromList(List<int>.filled(48, 3));
   final garment = Uint8List.fromList(List<int>.filled(48, 9));
 
-  group('TryOnService (demo mode)', () {
+  // A TryOnService whose free engine can't reach the network, so tests exercise
+  // the honest stand-in fallback without any real HTTP.
+  TryOnService offlineService() => TryOnService(
+        freeEngine: FreeTryOnService(
+          client: MockClient((_) async => http.Response('offline', 503)),
+        ),
+      );
+
+  group('TryOnService (offline fallback)', () {
     test('returns a walkable stand-in flagged as demo', () async {
-      final s = TryOnService();
+      final s = offlineService();
       expect(s.isLive, isFalse);
 
       final r = await s.run(personBytes: person, garmentBytes: garment);
@@ -23,7 +34,7 @@ void main() {
 
   group('TryOnState (demo mode)', () {
     test('loads a demo catalog spanning multiple categories', () async {
-      final st = TryOnState();
+      final st = TryOnState(service: offlineService());
       expect(st.isLive, isFalse);
 
       await st.loadCatalog();
@@ -33,7 +44,7 @@ void main() {
     });
 
     test('run produces a result and records the garment source', () async {
-      final st = TryOnState();
+      final st = TryOnState(service: offlineService());
       expect(st.hasResult, isFalse);
 
       await st.run(
@@ -51,7 +62,7 @@ void main() {
     });
 
     test('clearResult resets the result but keeps history', () async {
-      final st = TryOnState();
+      final st = TryOnState(service: offlineService());
       await st.run(
         personBytes: person,
         garmentBytes: garment,
@@ -67,7 +78,7 @@ void main() {
     });
 
     test('each run is recorded in history, newest first', () async {
-      final st = TryOnState();
+      final st = TryOnState(service: offlineService());
       expect(st.hasHistory, isFalse);
 
       await st.run(

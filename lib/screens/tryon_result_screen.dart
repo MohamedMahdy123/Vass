@@ -70,7 +70,7 @@ class TryOnResultScreen extends StatelessWidget {
             Text('Rendering $garmentLabel on you…',
                 style: TextStyle(fontFamily: kSans, fontSize: 14, color: t.ink2)),
             const SizedBox(height: 6),
-            Text('This usually takes a few seconds',
+            Text('This can take a minute or two on the free engine',
                 style: TextStyle(fontFamily: kSans, fontSize: 12, color: t.ink3)),
           ],
         ),

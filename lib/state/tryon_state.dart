@@ -11,8 +11,10 @@ export '../services/tryon_service.dart' show TryOnQuotaException;
 /// (person photo + garment), and holding the result. Backed by Supabase when
 /// configured; otherwise a walkable in-memory demo.
 class TryOnState extends ChangeNotifier {
+  TryOnState({TryOnService? service}) : _service = service ?? TryOnService();
+
   final _repo = TryOnRepository();
-  final _service = TryOnService();
+  final TryOnService _service;
 
   List<CatalogItem> _catalog = const [];
   List<TryOn> _history = [];
@@ -79,6 +81,7 @@ class TryOnState extends ChangeNotifier {
     String? garmentItemId,
     String? garmentCatalogId,
     String category = 'auto',
+    String? garmentDescription,
   }) async {
     if (_running) return;
     _running = true;
@@ -91,6 +94,7 @@ class TryOnState extends ChangeNotifier {
         personBytes: personBytes,
         garmentBytes: garmentBytes,
         category: category,
+        garmentDescription: garmentDescription,
       );
       _quotaReached = false;
 

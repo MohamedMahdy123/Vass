@@ -121,6 +121,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
       source: source,
       garmentItemId: sel.itemId,
       garmentCatalogId: sel.catalogId,
+      garmentDescription: sel.label,
     );
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(

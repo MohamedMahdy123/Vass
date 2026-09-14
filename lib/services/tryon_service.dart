@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../core/supabase_service.dart';
+import 'free_tryon_service.dart';
 
 /// The result of a try-on render.
 class TryOnResult {
@@ -24,10 +25,16 @@ class TryOnQuotaException implements Exception {
   String toString() => 'TryOnQuotaException(used: $used, limit: $limit)';
 }
 
-/// Runs a virtual try-on. Live, it calls the `try-on` Edge Function (FASHN via
-/// fal.ai, key server-side); in demo mode — or if the engine isn't configured
-/// yet — it returns a stand-in so the whole capture → result flow is walkable.
+/// Runs a virtual try-on. It prefers the paid FASHN engine (via the `try-on`
+/// Edge Function) when live and funded, then falls back to a free real render
+/// (IDM-VTON on Hugging Face), and finally to an honest stand-in. So the
+/// feature produces a real render even in demo mode, at no cost.
 class TryOnService {
+  TryOnService({FreeTryOnService? freeEngine})
+      : _free = freeEngine ?? FreeTryOnService();
+
+  final FreeTryOnService _free;
+
   bool get isLive =>
       SupabaseService.isReady &&
       SupabaseService.client.auth.currentUser != null;
@@ -36,6 +43,7 @@ class TryOnService {
     required Uint8List personBytes,
     required Uint8List garmentBytes,
     String category = 'auto',
+    String? garmentDescription,
   }) async {
     if (isLive) {
       try {
@@ -68,13 +76,23 @@ class TryOnService {
       } on TryOnQuotaException {
         rethrow; // let the state show the quota message
       } catch (_) {
-        // Network / function error — graceful demo fallback below.
+        // Network / function error — fall through to the free engine.
       }
     }
 
-    // Demo / fallback: we can't synthesize a real render locally, so we return
-    // the person photo as a stand-in and flag it, so the UI is honest about it.
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    return TryOnResult(bytes: personBytes, model: 'demo', isDemo: true);
+    // Free engine: a real render via IDM-VTON (Hugging Face) at no cost. This
+    // is what powers try-on until a paid engine (FASHN) has credits — including
+    // demo mode, so the feature actually works out of the box.
+    try {
+      final bytes = await _free.render(
+        personBytes: personBytes,
+        garmentBytes: garmentBytes,
+        garmentDescription: garmentDescription ?? 'a garment',
+      );
+      return TryOnResult(bytes: bytes, model: FreeTryOnService.engineName, isDemo: false);
+    } catch (_) {
+      // Last resort — an honest stand-in (person photo, flagged as demo).
+      return TryOnResult(bytes: personBytes, model: 'demo', isDemo: true);
+    }
   }
 }
