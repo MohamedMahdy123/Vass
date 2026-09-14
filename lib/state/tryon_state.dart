@@ -145,13 +145,15 @@ class TryOnState extends ChangeNotifier {
     }
   }
 
-  /// A small demo catalog so the browse → try-on flow works without a backend.
+  /// A small demo catalog of real garment photos so the browse → try-on flow is
+  /// walkable without a backend. (Live, these come from the `catalog` bucket.)
+  static const _px = '?auto=compress&cs=tinysrgb&w=600';
   List<CatalogItem> _demoCatalog() => const [
-        CatalogItem(id: 'cat-1', name: 'Relaxed Linen Shirt', brand: 'Vess Studio', category: 'Tops', color: 'Bone', priceCents: 8900, imagePath: 'https://picsum.photos/seed/vess-shirt/600/800'),
-        CatalogItem(id: 'cat-2', name: 'Wide-Leg Trousers', brand: 'Vess Studio', category: 'Bottoms', color: 'Charcoal', priceCents: 12900, imagePath: 'https://picsum.photos/seed/vess-trouser/600/800'),
-        CatalogItem(id: 'cat-3', name: 'Cropped Blazer', brand: 'Vess Studio', category: 'Outerwear', color: 'Camel', priceCents: 18900, imagePath: 'https://picsum.photos/seed/vess-blazer/600/800'),
-        CatalogItem(id: 'cat-4', name: 'Slip Dress', brand: 'Vess Studio', category: 'Dresses', color: 'Sage', priceCents: 14900, imagePath: 'https://picsum.photos/seed/vess-dress/600/800'),
-        CatalogItem(id: 'cat-5', name: 'Knit Polo', brand: 'Vess Studio', category: 'Tops', color: 'Ash', priceCents: 9900, imagePath: 'https://picsum.photos/seed/vess-polo/600/800'),
-        CatalogItem(id: 'cat-6', name: 'Pleated Skirt', brand: 'Vess Studio', category: 'Bottoms', color: 'Ivory', priceCents: 11900, imagePath: 'https://picsum.photos/seed/vess-skirt/600/800'),
+        CatalogItem(id: 'cat-1', name: 'Blue Striped Shirt', brand: 'Vess Studio', category: 'Tops', color: 'Blue', priceCents: 6900, imagePath: 'https://images.pexels.com/photos/4428388/pexels-photo-4428388.jpeg$_px'),
+        CatalogItem(id: 'cat-2', name: 'Teal Knit Sweater', brand: 'Vess Studio', category: 'Tops', color: 'Teal', priceCents: 8900, imagePath: 'https://images.pexels.com/photos/8159428/pexels-photo-8159428.jpeg$_px'),
+        CatalogItem(id: 'cat-3', name: 'Chunky Knit Cardigan', brand: 'Vess Studio', category: 'Outerwear', color: 'Cream', priceCents: 14900, imagePath: 'https://images.pexels.com/photos/4374510/pexels-photo-4374510.jpeg$_px'),
+        CatalogItem(id: 'cat-4', name: 'Linen Shorts', brand: 'Vess Studio', category: 'Bottoms', color: 'Blush', priceCents: 5900, imagePath: 'https://images.pexels.com/photos/5405644/pexels-photo-5405644.jpeg$_px'),
+        CatalogItem(id: 'cat-5', name: 'Canvas Sneakers', brand: 'Vess Studio', category: 'Footwear', color: 'Red', priceCents: 7900, imagePath: 'https://images.pexels.com/photos/3944692/pexels-photo-3944692.jpeg$_px'),
+        CatalogItem(id: 'cat-6', name: 'High-Top Sneakers', brand: 'Vess Studio', category: 'Footwear', color: 'Olive', priceCents: 8500, imagePath: 'https://images.pexels.com/photos/934069/pexels-photo-934069.jpeg$_px'),
       ];
 }
