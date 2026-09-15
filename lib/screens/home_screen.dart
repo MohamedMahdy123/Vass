@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/item.dart';
+import '../data/models/product_offer.dart';
 import '../services/outfit_engine.dart';
+import '../state/complete_the_look_state.dart';
 import '../state/recommendation_state.dart';
 import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
@@ -25,6 +27,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   static const _occasions = ['Everyday', 'Work', 'Smart', 'Casual', 'Formal'];
+
+  // Tracks the shown outfit so we re-run gap detection only when it changes.
+  String _gapKey = '';
 
   @override
   void initState() {
@@ -53,6 +58,25 @@ class _HomeScreenState extends State<HomeScreen> {
     final t = context.vess;
     final wardrobe = context.watch<WardrobeState>();
     final rec = context.watch<RecommendationState>();
+
+    // Re-run "complete the look" whenever the shown outfit changes.
+    final complete = context.read<CompleteTheLookState>();
+    if (rec.hasOutfit) {
+      final key = '${rec.occasion}|${rec.todayItems.map((i) => i.id).join(",")}';
+      if (key != _gapKey) {
+        _gapKey = key;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          complete.analyze(rec.todayItems, context.read<WardrobeState>().items,
+              occasion: rec.occasion, weather: rec.weather);
+        });
+      }
+    } else if (_gapKey.isNotEmpty) {
+      _gapKey = '';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<CompleteTheLookState>().clear();
+      });
+    }
 
     return SafeArea(
       bottom: false,
@@ -83,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
 
           _RecommendationCard(wardrobe: wardrobe, rec: rec),
+          const _CompleteTheLookCard(),
           const SizedBox(height: 14),
 
           _StylistPrompt(onTap: () => Shell.of(context)?.goTo(3)),
@@ -552,6 +577,179 @@ class _RoundIcon extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2.2, color: t.accent),
               )
             : Icon(icon, size: 20, color: t.accent),
+      ),
+    );
+  }
+}
+
+/// "Complete the look" — the missing-item → closet-first → shop loop, rendered
+/// under the recommendation when a finishing gap is detected.
+class _CompleteTheLookCard extends StatelessWidget {
+  const _CompleteTheLookCard();
+
+  IconData _iconFor(String slot) {
+    switch (slot) {
+      case 'Bag':
+        return Icons.shopping_bag_outlined;
+      case 'Belt':
+        return Icons.straighten;
+      default:
+        return Icons.checkroom_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    final s = context.watch<CompleteTheLookState>();
+    if (!s.hasSuggestion) return const SizedBox.shrink();
+    final gap = s.gap!;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: VessCard(
+        radius: 20,
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(_iconFor(gap.slot), size: 17, color: t.accent),
+                const SizedBox(width: 8),
+                Text('COMPLETE THE LOOK',
+                    style: eyebrow(t.accent, size: 11.5).copyWith(letterSpacing: 1.4)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              s.closetMatch != null
+                  ? 'You already own the finishing piece'
+                  : 'Add a ${gap.slot.toLowerCase()}',
+              style: serif(context, 21),
+            ),
+            const SizedBox(height: 6),
+            Text(gap.reason,
+                style: TextStyle(
+                    fontFamily: kSans, fontSize: 13.5, height: 1.5, color: t.ink2)),
+            const SizedBox(height: 14),
+            if (s.closetMatch != null)
+              _ClosetMatch(item: s.closetMatch!)
+            else if (s.loading)
+              Row(children: [
+                SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: t.accent)),
+                const SizedBox(width: 10),
+                Text('Finding options…',
+                    style: TextStyle(fontFamily: kSans, fontSize: 13, color: t.ink3)),
+              ])
+            else if (s.offers.isNotEmpty) ...[
+              Row(
+                children: [
+                  for (final o in s.offers) ...[
+                    Expanded(child: _OfferTile(offer: o, icon: _iconFor(gap.slot))),
+                    if (o != s.offers.last) const SizedBox(width: 10),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('Vess may earn a commission from purchases.',
+                  style: TextStyle(
+                      fontFamily: kSans, fontSize: 11, fontStyle: FontStyle.italic, color: t.ink3)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClosetMatch extends StatelessWidget {
+  const _ClosetMatch({required this.item});
+  final Item item;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: t.accentSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 46, height: 58, child: ItemImage(item: item, radius: 10)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontFamily: kSans, fontSize: 14, fontWeight: FontWeight.w600, color: t.ink)),
+                const SizedBox(height: 2),
+                Text('Already in your closet',
+                    style: TextStyle(fontFamily: kSans, fontSize: 12, color: t.accent)),
+              ],
+            ),
+          ),
+          Icon(Icons.check_circle, size: 20, color: t.accent),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfferTile extends StatelessWidget {
+  const _OfferTile({required this.offer, required this.icon});
+  final ProductOffer offer;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            backgroundColor: t.ink,
+            content: Text('Opening ${offer.brand} · demo shop link',
+                style: TextStyle(fontFamily: kSans, color: t.bg)),
+          ));
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 3 / 4,
+            child: Container(
+              decoration: BoxDecoration(
+                color: t.sand2,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 26, color: t.ink3),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(offer.brand,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontFamily: kSans, fontSize: 11.5, color: t.ink3)),
+          Text(offer.priceLabel,
+              style: TextStyle(
+                  fontFamily: 'Geist Mono',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: t.ink)),
+        ],
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'core/supabase_service.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'state/app_state.dart';
+import 'state/complete_the_look_state.dart';
 import 'state/recommendation_state.dart';
 import 'state/stylist_state.dart';
 import 'state/tryon_state.dart';
@@ -32,6 +33,7 @@ class VessApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RecommendationState()),
         ChangeNotifierProvider(create: (_) => TryOnState()),
         ChangeNotifierProvider(create: (_) => StylistState()),
+        ChangeNotifierProvider(create: (_) => CompleteTheLookState()),
       ],
       child: Consumer<AppState>(
         builder: (context, state, _) {

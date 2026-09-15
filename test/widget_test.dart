@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:vess/data/mock_data.dart';
 import 'package:vess/screens/shell.dart';
 import 'package:vess/state/app_state.dart';
+import 'package:vess/state/complete_the_look_state.dart';
 import 'package:vess/state/recommendation_state.dart';
 import 'package:vess/state/stylist_state.dart';
 import 'package:vess/state/tryon_state.dart';
@@ -29,6 +30,7 @@ Widget wrap(Widget child, AppState state) {
       ChangeNotifierProvider(create: (_) => RecommendationState()),
       ChangeNotifierProvider(create: (_) => TryOnState()),
       ChangeNotifierProvider(create: (_) => StylistState()),
+      ChangeNotifierProvider(create: (_) => CompleteTheLookState()),
     ],
     child: MaterialApp(
       theme: buildVessTheme(VessTokens.light, Brightness.light),
