@@ -63,6 +63,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    # Transparent garment product shots for the demo wardrobe. Drop real
+    # transparent PNG cut-outs over these (same paths) to use photography.
+    - assets/garments/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

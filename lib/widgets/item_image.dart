@@ -53,6 +53,14 @@ class ItemImage extends StatelessWidget {
     final path = cutoutUrl ?? originalUrl;
     final isCutout = cutoutUrl != null;
 
+    // A bundled asset cut-out (demo seed / catalog defaults) — matted like any
+    // other cut-out, falling back to the silhouette if the file is missing.
+    if (path != null && path.startsWith('assets/')) {
+      final img = Image.asset(path,
+          fit: BoxFit.contain, errorBuilder: (_, __, ___) => _silhouette());
+      return _card(context, r, _matted(img));
+    }
+
     // 2/4 — a full URL (demo/catalog/cut-out CDN) renders directly.
     if (path != null && (path.startsWith('http://') || path.startsWith('https://'))) {
       final img = Image.network(path,

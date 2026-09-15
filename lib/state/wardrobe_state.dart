@@ -164,22 +164,23 @@ class WardrobeState extends ChangeNotifier {
         id: 'local-${DateTime.now().microsecondsSinceEpoch}-${_localSeq++}',
       );
 
-  /// A small starter closet for demo mode. Pieces are photo-less so they render
-  /// through [ItemImage] as clean flat-lay silhouettes on the neutral catalog
-  /// card — the same product-shot treatment a background-removed cut-out gets,
-  /// so demo mode previews the real UGC look without stock photography.
+  /// A small starter closet for demo mode. Each piece carries a bundled
+  /// transparent cut-out ([processedImageUrl] → `assets/garments/…`), so demo
+  /// mode renders through [ItemImage] as clean catalog product shots — the same
+  /// treatment a background-removed user photo gets. If an asset is missing the
+  /// widget falls back to a flat-lay silhouette in the item's colour.
   List<Item> _demoSeed() => const [
-        Item(id: 'demo-1', name: 'Ribbed Wool Sweater', category: 'Tops', color: 'Ash', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-2', name: 'Oxford Shirt', category: 'Tops', color: 'White', material: 'Cotton', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Nord', status: ItemStatus.reviewed),
-        Item(id: 'demo-3', name: 'Cotton Tee', category: 'Tops', color: 'Sand', material: 'Cotton', pattern: 'Solid', season: 'Summer', occasion: 'Casual', brand: 'Lune', status: ItemStatus.reviewed),
-        Item(id: 'demo-4', name: 'Chunky Knit', category: 'Tops', color: 'Cream', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-5', name: 'Straight Jeans', category: 'Bottoms', color: 'Indigo', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-6', name: 'Washed Denim', category: 'Bottoms', color: 'Blue', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', status: ItemStatus.reviewed),
-        Item(id: 'demo-7', name: 'Camel Trench', category: 'Outerwear', color: 'Camel', material: 'Cotton', pattern: 'Solid', season: 'Spring', occasion: 'Smart', brand: 'Lune', status: ItemStatus.reviewed),
-        Item(id: 'demo-8', name: 'Wool Overcoat', category: 'Outerwear', color: 'Charcoal', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Work', brand: 'Kestrel', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-9', name: 'Leather Loafers', category: 'Footwear', color: 'Cognac', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', status: ItemStatus.reviewed),
-        Item(id: 'demo-10', name: 'Derby Shoes', category: 'Footwear', color: 'Brown', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-11', name: 'Cashmere Scarf', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-12', name: 'Linen Dress', category: 'Dresses', color: 'Bone', material: 'Linen', pattern: 'Solid', season: 'Summer', occasion: 'Smart', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-1', name: 'Ribbed Wool Sweater', processedImageUrl: 'assets/garments/demo-1.png', category: 'Tops', color: 'Ash', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-2', name: 'Oxford Shirt', processedImageUrl: 'assets/garments/demo-2.png', category: 'Tops', color: 'White', material: 'Cotton', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Nord', status: ItemStatus.reviewed),
+        Item(id: 'demo-3', name: 'Cotton Tee', processedImageUrl: 'assets/garments/demo-3.png', category: 'Tops', color: 'Sand', material: 'Cotton', pattern: 'Solid', season: 'Summer', occasion: 'Casual', brand: 'Lune', status: ItemStatus.reviewed),
+        Item(id: 'demo-4', name: 'Chunky Knit', processedImageUrl: 'assets/garments/demo-4.png', category: 'Tops', color: 'Cream', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-5', name: 'Straight Jeans', processedImageUrl: 'assets/garments/demo-5.png', category: 'Bottoms', color: 'Indigo', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-6', name: 'Washed Denim', processedImageUrl: 'assets/garments/demo-6.png', category: 'Bottoms', color: 'Blue', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', status: ItemStatus.reviewed),
+        Item(id: 'demo-7', name: 'Camel Trench', processedImageUrl: 'assets/garments/demo-7.png', category: 'Outerwear', color: 'Camel', material: 'Cotton', pattern: 'Solid', season: 'Spring', occasion: 'Smart', brand: 'Lune', status: ItemStatus.reviewed),
+        Item(id: 'demo-8', name: 'Wool Overcoat', processedImageUrl: 'assets/garments/demo-8.png', category: 'Outerwear', color: 'Charcoal', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Work', brand: 'Kestrel', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-9', name: 'Leather Loafers', processedImageUrl: 'assets/garments/demo-9.png', category: 'Footwear', color: 'Cognac', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', status: ItemStatus.reviewed),
+        Item(id: 'demo-10', name: 'Derby Shoes', processedImageUrl: 'assets/garments/demo-10.png', category: 'Footwear', color: 'Brown', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-11', name: 'Cashmere Scarf', processedImageUrl: 'assets/garments/demo-11.png', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-12', name: 'Linen Dress', processedImageUrl: 'assets/garments/demo-12.png', category: 'Dresses', color: 'Bone', material: 'Linen', pattern: 'Solid', season: 'Summer', occasion: 'Smart', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
       ];
 }
