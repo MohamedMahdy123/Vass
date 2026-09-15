@@ -39,6 +39,7 @@ class ClothingItem {
     this.lastWornAt,
     this.status = ItemStatus.pending,
     this.localBytes,
+    this.processedBytes,
     // ---- legacy single-value compatibility (deprecated) ----
     this.color,
     this.occasion,
@@ -83,6 +84,10 @@ class ClothingItem {
   /// Never persisted.
   final Uint8List? localBytes;
 
+  /// Background-removed bytes held in memory for instant preview before upload
+  /// (and for demo mode, which has no storage). Never persisted.
+  final Uint8List? processedBytes;
+
   // ---- legacy single-value fields (kept populated for old call sites) ----
   final String? color;
   final String? occasion;
@@ -103,6 +108,7 @@ class ClothingItem {
       : (season != null && season!.isNotEmpty ? [season!] : const []);
 
   ClothingItem copyWith({
+    String? id,
     String? name,
     String? userId,
     String? imagePath,
@@ -122,6 +128,7 @@ class ClothingItem {
     DateTime? lastWornAt,
     ItemStatus? status,
     Uint8List? localBytes,
+    Uint8List? processedBytes,
     // legacy
     String? color,
     String? occasion,
@@ -129,7 +136,7 @@ class ClothingItem {
     String? material,
   }) {
     return ClothingItem(
-      id: id,
+      id: id ?? this.id,
       userId: userId ?? this.userId,
       name: name ?? this.name,
       imagePath: imagePath ?? this.imagePath,
@@ -149,6 +156,7 @@ class ClothingItem {
       lastWornAt: lastWornAt ?? this.lastWornAt,
       status: status ?? this.status,
       localBytes: localBytes ?? this.localBytes,
+      processedBytes: processedBytes ?? this.processedBytes,
       color: color ?? this.color,
       occasion: occasion ?? this.occasion,
       season: season ?? this.season,

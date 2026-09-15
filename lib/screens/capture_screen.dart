@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../data/models/item.dart';
 import '../services/analysis_service.dart';
+import '../services/background_removal_service.dart';
 import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
@@ -26,6 +27,7 @@ class CaptureScreen extends StatefulWidget {
 class _CaptureScreenState extends State<CaptureScreen> {
   final _picker = ImagePicker();
   final _analysis = AnalysisService();
+  final _bgRemoval = BackgroundRemovalService();
   final List<_Draft> _drafts = [];
   bool _saving = false;
 
@@ -45,6 +47,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       final draft = _Draft(bytes);
       setState(() => _drafts.add(draft));
       _analyze(draft); // fire-and-forget; card shows progress
+      _removeBg(draft); // fire-and-forget; swaps in the cut-out when ready
     }
   }
 
@@ -55,6 +58,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
     } catch (_) {
       if (mounted) setState(() => d.markFailed());
     }
+  }
+
+  Future<void> _removeBg(_Draft d) async {
+    // Best-effort: a transparent cut-out if the engine is available, else the
+    // original photo stands. Never blocks tagging or saving.
+    final cut = await _bgRemoval.remove(d.bytes);
+    if (cut != null && mounted) setState(() => d.processedBytes = cut);
   }
 
   void _remove(_Draft d) {
@@ -217,6 +227,7 @@ class _Draft {
   _Draft(this.bytes);
 
   final Uint8List bytes;
+  Uint8List? processedBytes; // transparent cut-out, when ready
   final name = TextEditingController();
   final color = TextEditingController();
   String category = 'Tops';
@@ -273,6 +284,7 @@ class _Draft {
         weatherTags: weatherTags,
         brand: brand,
         status: ItemStatus.reviewed,
+        processedBytes: processedBytes,
         // legacy mirrors for any single-value reader
         color: color.text.trim().isEmpty ? null : color.text.trim(),
         season: season,

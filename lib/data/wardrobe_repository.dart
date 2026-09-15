@@ -37,6 +37,19 @@ class WardrobeRepository {
     return path;
   }
 
+  /// Upload the background-removed (transparent PNG) cut-out and return its
+  /// storage path. Kept separate from the original so both survive.
+  Future<String> uploadProcessed(String itemId, Uint8List bytes) async {
+    final userId = SupabaseService.client.auth.currentUser!.id;
+    final path = '$userId/$itemId-cutout.png';
+    await SupabaseService.client.storage.from(_bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(contentType: 'image/png', upsert: true),
+        );
+    return path;
+  }
+
   /// A short-lived URL for displaying a stored photo.
   Future<String> signedUrl(String path, {int expiresIn = 3600}) {
     return SupabaseService.client.storage

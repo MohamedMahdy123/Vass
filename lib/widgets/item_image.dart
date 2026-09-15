@@ -31,14 +31,18 @@ class ItemImage extends StatelessWidget {
       child: child,
     );
 
-    // Just-captured bytes render instantly, no network round-trip.
-    if (item.localBytes != null) {
+    // Just-captured bytes render instantly, no network round-trip — prefer the
+    // background-removed cut-out (contained on the swatch) over the original.
+    final memBytes = item.processedBytes ?? item.localBytes;
+    if (memBytes != null) {
+      final cutout = item.processedBytes != null;
       return ClipRRect(
         borderRadius: r,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.memory(item.localBytes!, fit: BoxFit.cover),
+            if (cutout) swatch, // transparent PNG sits on the tonal ground
+            Image.memory(memBytes, fit: cutout ? BoxFit.contain : BoxFit.cover),
             if (child != null) child!,
           ],
         ),

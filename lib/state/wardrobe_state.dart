@@ -82,8 +82,30 @@ class WardrobeState extends ChangeNotifier {
     if (isLive) {
       final created = await _repo.add(draft);
       final path = await _repo.uploadPhoto(created.id, bytes);
-      await _repo.update(created.id, {'image_path': path});
-      _items.insert(0, created.copyWith(imagePath: path, localBytes: bytes));
+      final patch = <String, dynamic>{'image_path': path};
+
+      // If background removal produced a cut-out, upload it too and link it.
+      String? processedPath;
+      final cutout = draft.processedBytes;
+      if (cutout != null) {
+        try {
+          processedPath = await _repo.uploadProcessed(created.id, cutout);
+          patch['processed_image_url'] = processedPath;
+        } catch (_) {
+          // Best-effort — the original photo is enough to save the item.
+        }
+      }
+
+      await _repo.update(created.id, patch);
+      _items.insert(
+        0,
+        created.copyWith(
+          imagePath: path,
+          processedImageUrl: processedPath,
+          localBytes: bytes,
+          processedBytes: cutout,
+        ),
+      );
     } else {
       _items.insert(0, _withLocalId(draft.copyWith(localBytes: bytes)));
     }
@@ -150,6 +172,7 @@ class WardrobeState extends ChangeNotifier {
         favorite: draft.favorite,
         status: draft.status,
         localBytes: draft.localBytes,
+        processedBytes: draft.processedBytes,
       );
 
   /// A small, real-looking starter closet for demo mode. Most pieces carry real
