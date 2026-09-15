@@ -1,4 +1,5 @@
 import '../data/models/item.dart';
+import '../data/models/missing_item.dart';
 import '../data/models/outfit.dart';
 
 /// The deterministic outfit builder — the same rules the server's `recommend`
@@ -257,5 +258,155 @@ class OutfitEngine {
     // Join into one warm sentence, capitalized, single period.
     final joined = parts.join(', ');
     return '${joined[0].toUpperCase()}${joined.substring(1)}.';
+  }
+
+  // === Complete-the-Look: gap detection ======================================
+  // Given an assembled outfit, find the single highest-impact *finishing* piece
+  // it's missing (belt / outerwear-layer / bag) for the occasion and weather.
+  // Deterministic and explainable; returns null when the look is already
+  // complete — we never invent a gap.
+
+  /// The finishing slots this MVP reasons about.
+  static MissingItem? findGap(
+    List<Item> outfit, {
+    String? occasion,
+    String? weather,
+  }) {
+    if (outfit.isEmpty) return null;
+
+    final f = formality(occasion);
+    final cold = _cold(weather);
+    final slots = outfit.map(slotOf).toSet();
+    final hasSeparates = slots.contains('Tops') && slots.contains('Bottoms');
+    final hasDress = slots.contains('Dress');
+    // A core (separates or a dress) must exist — completing the core is the
+    // recommender's job, not the finisher's.
+    if (!hasSeparates && !hasDress) return null;
+
+    final candidates = <MissingItem>[];
+
+    // --- Outerwear / tailored layer ---
+    if (!slots.contains('Outerwear')) {
+      var need = 0.0;
+      if (cold) need += 2.5;
+      if (f >= 2) need += 1.5;
+      if (need >= 2) {
+        final coat = cold;
+        candidates.add(MissingItem(
+          slot: 'Outerwear',
+          descriptor: ItemDescriptor(
+            category: coat ? 'wool coat' : 'blazer',
+            color: _pickNeutral(outfit, fallback: coat ? 'camel' : 'navy'),
+            material: coat ? 'wool' : null,
+            style: 'tailored',
+          ),
+          reason: cold
+              ? "It's cold for ${_occ(occasion)} — a tailored coat keeps the look sharp and warm."
+              : "This reads a little casual for ${_occ(occasion)} — a tailored blazer lifts it.",
+          priceHint: coat ? const PriceHint(120, 400) : const PriceHint(80, 250),
+          confidence: (need / 4).clamp(0, 1).toDouble(),
+        ));
+      }
+    }
+
+    // --- Belt (finishes tailored separates) ---
+    if (hasSeparates && !_hasKeyword(outfit, const ['belt'])) {
+      var need = 0.0;
+      if (f >= 2) {
+        need += 2.5;
+      } else if (f == 1) {
+        need += 1.0;
+      }
+      if (need >= 2) {
+        candidates.add(MissingItem(
+          slot: 'Belt',
+          descriptor: ItemDescriptor(
+            category: 'belt',
+            color: _pickNeutral(outfit, fallback: 'tan'),
+            material: 'leather',
+            style: 'slim',
+          ),
+          reason: "Your ${_anchorName(outfit)} and ${_bottomName(outfit)} "
+              "read a touch unfinished for ${_occ(occasion)} — a slim leather "
+              "belt ties the waist together.",
+          priceHint: const PriceHint(20, 70),
+          confidence: (need / 3).clamp(0, 1).toDouble(),
+        ));
+      }
+    }
+
+    // --- Bag (finishes work / going-out looks) ---
+    if (!_hasKeyword(
+        outfit, const ['bag', 'tote', 'clutch', 'purse', 'backpack', 'satchel'])) {
+      var need = 0.0;
+      if (f >= 2) need += 1.8;
+      if (f == 3) need += 0.6;
+      if (need >= 1.8) {
+        final evening = f >= 3;
+        candidates.add(MissingItem(
+          slot: 'Bag',
+          descriptor: ItemDescriptor(
+            category: evening ? 'clutch' : 'shoulder bag',
+            color: _pickNeutral(outfit, fallback: 'black'),
+            material: 'leather',
+            style: evening ? 'evening' : 'structured',
+          ),
+          reason: "Finish the look for ${_occ(occasion)} with a "
+              "${evening ? 'sleek clutch' : 'structured bag'} — it pulls the "
+              "whole outfit together.",
+          priceHint: const PriceHint(40, 180),
+          confidence: (need / 3).clamp(0, 1).toDouble(),
+        ));
+      }
+    }
+
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) => b.confidence.compareTo(a.confidence));
+    return candidates.first;
+  }
+
+  static bool _hasKeyword(List<Item> items, List<String> keywords) {
+    return items.any((i) {
+      final hay = '${i.name} ${i.category ?? ''}'.toLowerCase();
+      return keywords.any(hay.contains);
+    });
+  }
+
+  /// A neutral color to give the finishing piece: prefer the shoes' color when
+  /// it's neutral (belts/bags echo footwear well), else any neutral in the
+  /// look, else the fallback.
+  static String _pickNeutral(List<Item> items, {required String fallback}) {
+    Item? shoes;
+    for (final i in items) {
+      if (slotOf(i) == 'Footwear') {
+        shoes = i;
+        break;
+      }
+    }
+    if (shoes?.color != null && isNeutral(shoes!.color)) {
+      return shoes.color!.toLowerCase();
+    }
+    for (final i in items) {
+      if (isNeutral(i.color)) return i.color!.toLowerCase();
+    }
+    return fallback;
+  }
+
+  static String _occ(String? occasion) =>
+      (occasion == null || occasion.trim().isEmpty) ? 'today' : occasion.toLowerCase();
+
+  static String _anchorName(List<Item> items) {
+    for (final i in items) {
+      final s = slotOf(i);
+      if (s == 'Tops' || s == 'Dress') return i.name.toLowerCase();
+    }
+    return items.isEmpty ? 'top' : items.first.name.toLowerCase();
+  }
+
+  static String _bottomName(List<Item> items) {
+    for (final i in items) {
+      if (slotOf(i) == 'Bottoms') return i.name.toLowerCase();
+    }
+    return 'bottoms';
   }
 }
