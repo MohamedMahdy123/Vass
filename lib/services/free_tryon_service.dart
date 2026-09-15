@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../core/config.dart';
+
 /// Free virtual try-on via the public IDM-VTON Hugging Face Space (Gradio API).
 ///
 /// Produces a real render at no cost — used as the app's try-on engine until a
@@ -15,13 +17,20 @@ import 'package:http/http.dart' as http;
 /// result image. CORS is permitted, so this runs directly from the client on
 /// web and mobile alike.
 class FreeTryOnService {
-  FreeTryOnService({http.Client? client, Duration? retryDelay})
+  FreeTryOnService({http.Client? client, Duration? retryDelay, String? hfToken})
       : _client = client ?? http.Client(),
-        _retryDelay = retryDelay ?? const Duration(seconds: 6);
+        _retryDelay = retryDelay ?? const Duration(seconds: 6),
+        _authHeaders = (hfToken ?? Config.hfToken).isEmpty
+            ? const {}
+            : {'Authorization': 'Bearer ${hfToken ?? Config.hfToken}'};
 
   static const _host = 'https://yisol-idm-vton.hf.space';
   final http.Client _client;
   final Duration _retryDelay;
+
+  /// A signed-in HF token (when supplied) raises the free ZeroGPU quota well
+  /// above anonymous; empty otherwise.
+  final Map<String, String> _authHeaders;
 
   static const engineName = 'idm-vton';
 
@@ -81,7 +90,7 @@ class FreeTryOnService {
 
     final call = await _client.post(
       Uri.parse('$_host/call/tryon'),
-      headers: {'content-type': 'application/json'},
+      headers: {'content-type': 'application/json', ..._authHeaders},
       body: body,
     );
     final eventId = (jsonDecode(call.body) as Map)['event_id'] as String?;
@@ -94,6 +103,7 @@ class FreeTryOnService {
 
   Future<String> _upload(Uint8List bytes, String filename) async {
     final req = http.MultipartRequest('POST', Uri.parse('$_host/upload'))
+      ..headers.addAll(_authHeaders)
       ..files.add(http.MultipartFile.fromBytes('files', bytes, filename: filename));
     // Route through the injected client so it stays testable/offline-safe.
     final resp = await http.Response.fromStream(await _client.send(req));
@@ -104,7 +114,8 @@ class FreeTryOnService {
   /// Read the Server-Sent-Events stream until the `complete` event, and return
   /// the URL of the rendered image.
   Future<String> _awaitResult(String eventId) async {
-    final req = http.Request('GET', Uri.parse('$_host/call/tryon/$eventId'));
+    final req = http.Request('GET', Uri.parse('$_host/call/tryon/$eventId'))
+      ..headers.addAll(_authHeaders);
     final resp = await _client.send(req).timeout(const Duration(seconds: 240));
 
     String? currentEvent;

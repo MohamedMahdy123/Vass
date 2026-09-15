@@ -12,9 +12,10 @@ Future<void> main(List<String> args) async {
   }
   final person = await File(args[0]).readAsBytes();
   final garment = await File(args[1]).readAsBytes();
+  final hfToken = args.length > 3 ? args[3] : ''; // optional HF token
   stdout.writeln('rendering (free GPU, may take a minute)…');
   final sw = Stopwatch()..start();
-  final bytes = await FreeTryOnService().render(
+  final bytes = await FreeTryOnService(hfToken: hfToken).render(
     personBytes: person,
     garmentBytes: garment,
     garmentDescription: 'a short sleeve top',
