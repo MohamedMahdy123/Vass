@@ -8,7 +8,7 @@ import 'package:vess/theme/app_theme.dart';
 import 'package:vess/theme/tokens.dart';
 
 void useTallSurface(WidgetTester tester) {
-  tester.binding.window.physicalSizeTestValue = const Size(394 * 3, 1900 * 3);
+  tester.binding.window.physicalSizeTestValue = const Size(394 * 3, 2600 * 3);
   tester.binding.window.devicePixelRatioTestValue = 3.0;
   addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
   addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
@@ -83,6 +83,64 @@ void main() {
       await pumpDetail(tester, item);
       expect(find.text('Add occasions'), findsOneWidget);
       expect(find.text('Add weather'), findsOneWidget);
+    });
+  });
+
+  group('ItemDetailScreen — inline single-value attrs', () {
+    testWidgets('changes Category via the chip picker', (tester) async {
+      const item = Item(id: 'c1', name: 'Blazer', category: 'Tops', color: 'Navy');
+      final res = await pumpDetail(tester, item);
+      final w = res[0] as WardrobeState;
+      final id = res[1] as String;
+
+      // The Category row's edit pencil is the first attr editor.
+      await tester.tap(find.byIcon(Icons.edit_outlined).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Outerwear'));
+      await tester.pumpAndSettle();
+
+      expect(w.byId(id).category, 'Outerwear');
+    });
+
+    testWidgets('edits a free-text attr (Fabric) and saves', (tester) async {
+      const item = Item(id: 'f1', name: 'Shirt', category: 'Tops', color: 'White');
+      final res = await pumpDetail(tester, item);
+      final w = res[0] as WardrobeState;
+      final id = res[1] as String;
+
+      // Open the Fabric editor: label rows are Category, Type, Colour, Accent,
+      // Fabric, Pattern → pencil index 4.
+      final pencils = find.byIcon(Icons.edit_outlined);
+      await tester.tap(pencils.at(4));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Linen');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(w.byId(id).fabric, 'Linen');
+    });
+
+    testWidgets('clearing a free-text attr sets it to null', (tester) async {
+      const item = Item(
+        id: 'p1',
+        name: 'Tee',
+        category: 'Tops',
+        color: 'White',
+        pattern: 'Striped',
+      );
+      final res = await pumpDetail(tester, item);
+      final w = res[0] as WardrobeState;
+      final id = res[1] as String;
+
+      // Pattern is the last attr editor (index 5).
+      await tester.tap(find.byIcon(Icons.edit_outlined).at(5));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, '');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(w.byId(id).pattern, isNull);
     });
   });
 }

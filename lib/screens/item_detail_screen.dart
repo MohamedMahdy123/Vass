@@ -55,16 +55,6 @@ class ItemDetailScreen extends StatelessWidget {
     if (!exists) return Scaffold(backgroundColor: t.bg, body: const SizedBox());
     final item = state.byId(itemId);
 
-    // Single-value facts render as key/value chips.
-    final attrs = <List<String>>[
-      if (item.category != null) ['Category', item.category!],
-      if (item.subCategory != null) ['Type', item.subCategory!],
-      if (item.primaryColor != null) ['Colour', item.primaryColor!],
-      if (item.secondaryColor != null) ['Accent', item.secondaryColor!],
-      if (item.fabric != null) ['Fabric', item.fabric!],
-      if (item.pattern != null) ['Pattern', item.pattern!],
-    ];
-
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -103,19 +93,55 @@ class ItemDetailScreen extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 22),
-                      if (attrs.isNotEmpty)
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [for (final a in attrs) _AttrChip(label: a[0], value: a[1])],
-                        ),
-                      const SizedBox(height: 20),
+                      _EditableAttr(
+                        label: 'Category',
+                        value: item.category,
+                        options: kCategories,
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, category: v)),
+                      ),
+                      _EditableAttr(
+                        label: 'Type',
+                        value: item.subCategory,
+                        hint: 'e.g. Overcoat',
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, subCategory: v)),
+                      ),
+                      _EditableAttr(
+                        label: 'Colour',
+                        value: item.primaryColor,
+                        hint: 'e.g. Charcoal',
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, colorPrimary: v)),
+                      ),
+                      _EditableAttr(
+                        label: 'Accent',
+                        value: item.secondaryColor,
+                        hint: 'Secondary colour',
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, colorSecondary: v)),
+                      ),
+                      _EditableAttr(
+                        label: 'Fabric',
+                        value: item.fabric,
+                        hint: 'e.g. Wool',
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, fabricType: v)),
+                      ),
+                      _EditableAttr(
+                        label: 'Pattern',
+                        value: item.pattern,
+                        hint: 'e.g. Solid',
+                        onChanged: (v) =>
+                            state.updateItem(_edited(item, pattern: v)),
+                      ),
+                      const SizedBox(height: 22),
                       _EditableTagGroup(
                         label: 'Occasions',
                         options: kOccasions,
                         selected: item.occasionTags,
                         onChanged: (next) =>
-                            state.updateItem(_withTags(item, occasions: next)),
+                            state.updateItem(_edited(item, occasions: next)),
                       ),
                       const SizedBox(height: 20),
                       _EditableTagGroup(
@@ -123,7 +149,7 @@ class ItemDetailScreen extends StatelessWidget {
                         options: kSeasons,
                         selected: item.seasonTags,
                         onChanged: (next) =>
-                            state.updateItem(_withTags(item, seasons: next)),
+                            state.updateItem(_edited(item, seasons: next)),
                       ),
                       const SizedBox(height: 20),
                       _EditableTagGroup(
@@ -131,7 +157,7 @@ class ItemDetailScreen extends StatelessWidget {
                         options: kWeather,
                         selected: item.weatherTags,
                         onChanged: (next) =>
-                            state.updateItem(_withTags(item, weatherTags: next)),
+                            state.updateItem(_edited(item, weatherTags: next)),
                       ),
                       const SizedBox(height: 28),
                       Row(
@@ -177,30 +203,54 @@ class ItemDetailScreen extends StatelessWidget {
   }
 }
 
-/// Rebuild an item with one tag list replaced, preserving every other field
-/// (including the background-removed cut-out) and keeping the legacy
-/// single-value mirrors coherent so older readers don't show a stale value.
-Item _withTags(
+/// Sentinel for [_edited]: distinguishes "leave this field unchanged" from
+/// "set it to null" (clear it).
+const Object _unset = Object();
+
+/// Rebuild an item with selected attributes replaced, preserving every other
+/// field (including the background-removed cut-out) and keeping the legacy
+/// single-value mirrors coherent so older readers never show a stale value.
+///
+/// Any argument left at [_unset] keeps the item's current value; passing an
+/// explicit value (including null) sets it.
+Item _edited(
   Item e, {
-  List<String>? occasions,
-  List<String>? seasons,
-  List<String>? weatherTags,
+  Object? category = _unset,
+  Object? subCategory = _unset,
+  Object? colorPrimary = _unset,
+  Object? colorSecondary = _unset,
+  Object? fabricType = _unset,
+  Object? pattern = _unset,
+  Object? occasions = _unset,
+  Object? seasons = _unset,
+  Object? weatherTags = _unset,
 }) {
-  final occ = occasions ?? e.occasionTags;
-  final sea = seasons ?? e.seasonTags;
-  final wea = weatherTags ?? e.weatherTags;
+  String? str(Object? v, String? cur) => identical(v, _unset) ? cur : v as String?;
+  List<String> list(Object? v, List<String> cur) =>
+      identical(v, _unset) ? cur : (v as List<String>);
+
+  final cat = str(category, e.category);
+  final sub = str(subCategory, e.subCategory);
+  final cp = str(colorPrimary, e.primaryColor);
+  final cs = str(colorSecondary, e.colorSecondary);
+  final fab = str(fabricType, e.fabric);
+  final pat = str(pattern, e.pattern);
+  final occ = list(occasions, e.occasionTags);
+  final sea = list(seasons, e.seasonTags);
+  final wea = list(weatherTags, e.weatherTags);
+
   return Item(
     id: e.id,
     userId: e.userId,
     name: e.name,
     imagePath: e.imagePath,
     processedImageUrl: e.processedImageUrl,
-    category: e.category,
-    subCategory: e.subCategory,
-    colorPrimary: e.primaryColor,
-    colorSecondary: e.colorSecondary,
-    fabricType: e.fabric,
-    pattern: e.pattern,
+    category: cat,
+    subCategory: sub,
+    colorPrimary: cp,
+    colorSecondary: cs,
+    fabricType: fab,
+    pattern: pat,
     brand: e.brand,
     occasions: occ,
     seasons: sea,
@@ -212,8 +262,8 @@ Item _withTags(
     localBytes: e.localBytes,
     processedBytes: e.processedBytes,
     // legacy mirrors
-    color: e.primaryColor,
-    material: e.fabric,
+    color: cp,
+    material: fab,
     occasion: occ.isNotEmpty ? occ.first : null,
     season: sea.isNotEmpty ? sea.first : null,
   );
@@ -334,33 +384,166 @@ class _EditableTagGroupState extends State<_EditableTagGroup> {
   }
 }
 
-class _AttrChip extends StatelessWidget {
-  const _AttrChip({required this.label, required this.value});
+/// One single-value attribute, editable in place. Collapsed, it's a compact
+/// label/value row with an edit affordance. Tapping opens either a single-
+/// select chip picker ([options] set) or a free-text field. Each commit
+/// persists via [onChanged]; an empty free-text value clears the attribute.
+class _EditableAttr extends StatefulWidget {
+  const _EditableAttr({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.options,
+    this.hint,
+  });
+
   final String label;
-  final String value;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  final List<String>? options; // null → free text
+  final String? hint;
+
+  @override
+  State<_EditableAttr> createState() => _EditableAttrState();
+}
+
+class _EditableAttrState extends State<_EditableAttr> {
+  bool _editing = false;
+  late final TextEditingController _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _open() {
+    _text.text = widget.value ?? '';
+    setState(() => _editing = true);
+  }
+
+  void _commitText() {
+    final v = _text.text.trim();
+    setState(() => _editing = false);
+    widget.onChanged(v.isEmpty ? null : v);
+  }
+
+  void _pick(String v) {
+    setState(() => _editing = false);
+    widget.onChanged(v == widget.value ? null : v); // tap current → clear
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: t.sand2,
-        border: Border.all(color: t.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${label.toUpperCase()}  ',
-              style: eyebrow(t.ink3, size: 9.5).copyWith(letterSpacing: 0.8)),
-          Text(value,
-              style: TextStyle(
-                fontFamily: kSans,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: t.ink,
-              )),
+          Row(
+            children: [
+              SizedBox(
+                width: 78,
+                child: Text(widget.label.toUpperCase(),
+                    style: eyebrow(t.ink3, size: 9.5).copyWith(letterSpacing: 0.8)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: widget.value != null
+                    ? Text(widget.value!,
+                        style: TextStyle(
+                          fontFamily: kSans,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: t.ink,
+                        ))
+                    : Text('Not set',
+                        style: TextStyle(
+                            fontFamily: kSans, fontSize: 13.5, color: t.ink3)),
+              ),
+              GestureDetector(
+                onTap: () => _editing ? setState(() => _editing = false) : _open(),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Icon(_editing ? Icons.close_rounded : Icons.edit_outlined,
+                      size: 15, color: t.accent),
+                ),
+              ),
+            ],
+          ),
+          if (_editing) ...[
+            const SizedBox(height: 10),
+            if (widget.options != null)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final o in widget.options!)
+                    VessChip(
+                      label: o,
+                      active: o == widget.value,
+                      onTap: () => _pick(o),
+                    ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: TextField(
+                        controller: _text,
+                        autofocus: true,
+                        onSubmitted: (_) => _commitText(),
+                        style: TextStyle(fontFamily: kSans, fontSize: 14.5, color: t.ink),
+                        decoration: InputDecoration(
+                          hintText: widget.hint,
+                          hintStyle:
+                              TextStyle(fontFamily: kSans, fontSize: 14, color: t.ink3),
+                          filled: true,
+                          fillColor: t.card,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: t.line),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: t.accent),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _commitText,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      height: 46,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: t.accentSoft,
+                        border: Border.all(color: t.accent.withOpacity(0.35)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text('Save',
+                          style: TextStyle(
+                            fontFamily: kSans,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: t.accent,
+                          )),
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ],
       ),
     );
