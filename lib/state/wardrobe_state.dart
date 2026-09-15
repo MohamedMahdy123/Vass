@@ -158,21 +158,10 @@ class WardrobeState extends ChangeNotifier {
   }
 
   int _localSeq = 0;
-  Item _withLocalId(Item draft) => Item(
+  // Assign a client-side id (demo mode / offline) while preserving every rich
+  // field — copyWith carries occasions/seasons/weather and the rest through.
+  Item _withLocalId(Item draft) => draft.copyWith(
         id: 'local-${DateTime.now().microsecondsSinceEpoch}-${_localSeq++}',
-        name: draft.name,
-        imagePath: draft.imagePath,
-        category: draft.category,
-        color: draft.color,
-        material: draft.material,
-        pattern: draft.pattern,
-        season: draft.season,
-        occasion: draft.occasion,
-        brand: draft.brand,
-        favorite: draft.favorite,
-        status: draft.status,
-        localBytes: draft.localBytes,
-        processedBytes: draft.processedBytes,
       );
 
   /// A small, real-looking starter closet for demo mode. Most pieces carry real

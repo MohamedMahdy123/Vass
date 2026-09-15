@@ -11,6 +11,7 @@ import '../widgets/item_image.dart';
 const _categories = ['Tops', 'Bottoms', 'Outerwear', 'Footwear', 'Accessories', 'Dresses', 'Other'];
 const _seasons = ['Spring', 'Summer', 'Autumn', 'Winter', 'All'];
 const _occasions = ['Casual', 'Work', 'Smart', 'Formal', 'Active'];
+const _weather = ['Hot', 'Warm', 'Mild', 'Cool', 'Cold', 'Rain'];
 
 /// Manual add / edit form. Photo capture + AI tagging arrive in M2; for now this
 /// is how a piece enters the wardrobe, and how any piece is edited.
@@ -33,8 +34,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
   late final TextEditingController _brand;
 
   late String _category;
-  String? _season;
-  String? _occasion;
+  final Set<String> _seasonSel = {};
+  final Set<String> _occasionSel = {};
+  final Set<String> _weatherSel = {};
   late bool _favorite;
   bool _saving = false;
 
@@ -48,8 +50,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _pattern = TextEditingController(text: e?.pattern ?? '');
     _brand = TextEditingController(text: e?.brand ?? '');
     _category = e?.category != null && _categories.contains(e!.category) ? e.category! : 'Tops';
-    _season = e?.season;
-    _occasion = e?.occasion;
+    _seasonSel.addAll(e?.seasonTags ?? const []);
+    _occasionSel.addAll(e?.occasionTags ?? const []);
+    _weatherSel.addAll(e?.weatherTags ?? const []);
     _favorite = e?.favorite ?? false;
   }
 
@@ -68,6 +71,10 @@ class _AddItemScreenState extends State<AddItemScreen> {
     return v.isEmpty ? null : v;
   }
 
+  void _toggle(Set<String> set, String value) {
+    if (!set.remove(value)) set.add(value);
+  }
+
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) {
       _toast('Give the piece a name.');
@@ -75,23 +82,41 @@ class _AddItemScreenState extends State<AddItemScreen> {
     }
     setState(() => _saving = true);
     final state = context.read<WardrobeState>();
+    final seasons = _seasonSel.toList();
+    final occasions = _occasionSel.toList();
+    final weather = _weatherSel.toList();
+    final color = _clean(_color);
+    final material = _clean(_material);
     try {
       if (widget.isEdit) {
+        final e = widget.existing!;
         final edited = Item(
-          id: widget.existing!.id,
-          imagePath: widget.existing!.imagePath,
+          id: e.id,
+          userId: e.userId,
+          imagePath: e.imagePath,
+          processedImageUrl: e.processedImageUrl,
           name: _name.text.trim(),
           category: _category,
-          color: _clean(_color),
-          material: _clean(_material),
+          subCategory: e.subCategory,
+          colorPrimary: color,
+          colorSecondary: e.colorSecondary,
+          fabricType: material,
+          occasions: occasions,
+          seasons: seasons,
+          weatherTags: weather,
           pattern: _clean(_pattern),
-          season: _season,
-          occasion: _occasion,
           brand: _clean(_brand),
           favorite: _favorite,
-          wearCount: widget.existing!.wearCount,
-          lastWornAt: widget.existing!.lastWornAt,
-          status: widget.existing!.status,
+          wearCount: e.wearCount,
+          lastWornAt: e.lastWornAt,
+          status: e.status,
+          localBytes: e.localBytes,
+          processedBytes: e.processedBytes,
+          // legacy mirrors for single-value readers (swatch, older screens)
+          color: color,
+          material: material,
+          season: seasons.isNotEmpty ? seasons.first : null,
+          occasion: occasions.isNotEmpty ? occasions.first : null,
         );
         await state.updateItem(edited);
       } else {
@@ -99,14 +124,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
           id: '',
           name: _name.text.trim(),
           category: _category,
-          color: _clean(_color),
-          material: _clean(_material),
+          colorPrimary: color,
+          fabricType: material,
+          occasions: occasions,
+          seasons: seasons,
+          weatherTags: weather,
           pattern: _clean(_pattern),
-          season: _season,
-          occasion: _occasion,
           brand: _clean(_brand),
           favorite: _favorite,
           status: ItemStatus.reviewed,
+          // legacy mirrors for single-value readers
+          color: color,
+          material: material,
+          season: seasons.isNotEmpty ? seasons.first : null,
+          occasion: occasions.isNotEmpty ? occasions.first : null,
         ));
       }
       if (mounted) Navigator.of(context).pop();
@@ -210,20 +241,28 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const _Label('Season'),
+                  const _MultiLabel('Occasion', 'Pick every setting it works for'),
                   const SizedBox(height: 10),
-                  _ChipRow(
-                    options: _seasons,
-                    value: _season,
-                    onSelect: (v) => setState(() => _season = _season == v ? null : v),
+                  _MultiChipRow(
+                    options: _occasions,
+                    selected: _occasionSel,
+                    onToggle: (v) => setState(() => _toggle(_occasionSel, v)),
                   ),
                   const SizedBox(height: 18),
-                  const _Label('Occasion'),
+                  const _MultiLabel('Season', 'Add all that apply'),
                   const SizedBox(height: 10),
-                  _ChipRow(
-                    options: _occasions,
-                    value: _occasion,
-                    onSelect: (v) => setState(() => _occasion = _occasion == v ? null : v),
+                  _MultiChipRow(
+                    options: _seasons,
+                    selected: _seasonSel,
+                    onToggle: (v) => setState(() => _toggle(_seasonSel, v)),
+                  ),
+                  const SizedBox(height: 18),
+                  const _MultiLabel('Weather', 'When it keeps you comfortable'),
+                  const SizedBox(height: 10),
+                  _MultiChipRow(
+                    options: _weather,
+                    selected: _weatherSel,
+                    onToggle: (v) => setState(() => _toggle(_weatherSel, v)),
                   ),
                   const SizedBox(height: 8),
                   SwitchListTile(
@@ -270,6 +309,62 @@ class _Label extends StatelessWidget {
           color: context.vess.ink2,
         ),
       );
+}
+
+/// Label with a short helper line, for multi-select groups where "more than
+/// one" isn't obvious from a single-select control.
+class _MultiLabel extends StatelessWidget {
+  const _MultiLabel(this.text, this.hint);
+  final String text;
+  final String hint;
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        _Label(text),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            hint,
+            style: TextStyle(fontFamily: kSans, fontSize: 11.5, color: t.ink3),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Multi-select chip group — any number of options can be active at once.
+class _MultiChipRow extends StatelessWidget {
+  const _MultiChipRow({
+    required this.options,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  final List<String> options;
+  final Set<String> selected;
+  final ValueChanged<String> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final o in options)
+          VessChip(
+            label: o,
+            active: selected.contains(o),
+            onTap: () => onToggle(o),
+          ),
+      ],
+    );
+  }
 }
 
 class _Field extends StatelessWidget {

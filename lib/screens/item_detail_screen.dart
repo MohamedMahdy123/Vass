@@ -54,13 +54,21 @@ class ItemDetailScreen extends StatelessWidget {
     if (!exists) return Scaffold(backgroundColor: t.bg, body: const SizedBox());
     final item = state.byId(itemId);
 
+    // Single-value facts render as key/value chips.
     final attrs = <List<String>>[
       if (item.category != null) ['Category', item.category!],
-      if (item.color != null) ['Colour', item.color!],
-      if (item.material != null) ['Material', item.material!],
+      if (item.subCategory != null) ['Type', item.subCategory!],
+      if (item.primaryColor != null) ['Colour', item.primaryColor!],
+      if (item.secondaryColor != null) ['Accent', item.secondaryColor!],
+      if (item.fabric != null) ['Fabric', item.fabric!],
       if (item.pattern != null) ['Pattern', item.pattern!],
-      if (item.season != null) ['Season', item.season!],
-      if (item.occasion != null) ['Occasion', item.occasion!],
+    ];
+
+    // Multi-value tag groups render as their own labelled chip rows.
+    final tagGroups = <List<dynamic>>[
+      if (item.occasionTags.isNotEmpty) ['Occasions', item.occasionTags],
+      if (item.seasonTags.isNotEmpty) ['Seasons', item.seasonTags],
+      if (item.weatherTags.isNotEmpty) ['Weather', item.weatherTags],
     ];
 
     return Scaffold(
@@ -106,6 +114,10 @@ class ItemDetailScreen extends StatelessWidget {
                           runSpacing: 8,
                           children: [for (final a in attrs) _AttrChip(label: a[0], value: a[1])],
                         ),
+                      for (final g in tagGroups) ...[
+                        const SizedBox(height: 20),
+                        _TagGroup(label: g[0] as String, values: g[1] as List<String>),
+                      ],
                       const SizedBox(height: 28),
                       Row(
                         children: [
@@ -146,6 +158,49 @@ class ItemDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A labelled row of read-only tag pills for a multi-value attribute
+/// (occasions, seasons, weather).
+class _TagGroup extends StatelessWidget {
+  const _TagGroup({required this.label, required this.values});
+  final String label;
+  final List<String> values;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.vess;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: eyebrow(t.ink3, size: 10).copyWith(letterSpacing: 1.2)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final v in values)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                decoration: BoxDecoration(
+                  color: t.accentSoft,
+                  border: Border.all(color: t.accent.withOpacity(0.35)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(v,
+                    style: TextStyle(
+                      fontFamily: kSans,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: t.accent,
+                    )),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
