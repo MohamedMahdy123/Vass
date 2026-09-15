@@ -16,11 +16,47 @@ class CompleteTheLookService {
       SupabaseService.client.auth.currentUser != null;
 
   Future<List<ProductOffer>> offersFor(MissingItem gap) async {
-    // TODO(go-live): when a provider is configured, invoke the Edge Function
-    // and return real affiliate offers here.
+    if (isLive) {
+      try {
+        final res = await SupabaseService.client.functions.invoke(
+          'complete-the-look',
+          body: {
+            'query': gap.query,
+            'slot': gap.slot,
+            'reason': gap.reason,
+            'descriptor': gap.descriptor.toMap(),
+            'priceMin': gap.priceHint.min,
+            'priceMax': gap.priceHint.max,
+          },
+        );
+        final data = res.data;
+        if (data is Map && data['offers'] is List) {
+          final list = (data['offers'] as List)
+              .whereType<Map>()
+              .map(_fromMap)
+              .where((o) => o.url.isNotEmpty)
+              .toList();
+          if (list.isNotEmpty) return list; // real provider offers
+        }
+        // configured:false or no results → fall through to mock.
+      } catch (_) {
+        // Network / function error — mock keeps the loop walkable.
+      }
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 450));
     return _mockOffers(gap);
   }
+
+  ProductOffer _fromMap(Map o) => ProductOffer(
+        title: (o['title'] as String?) ?? '',
+        brand: (o['brand'] as String?) ?? '',
+        retailer: (o['retailer'] as String?) ?? '',
+        priceCents: (o['price_cents'] as num?)?.toInt() ?? 0,
+        imageUrl: o['image_url'] as String?,
+        url: (o['url'] as String?) ?? '',
+        isMock: false,
+      );
 
   List<ProductOffer> _mockOffers(MissingItem gap) {
     const brands = ['Everlane', 'COS', 'Mango', 'Massimo Dutti', 'Uniqlo', 'Arket'];

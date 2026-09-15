@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../data/complete_the_look_repository.dart';
 import '../data/models/item.dart';
 import '../data/models/product_offer.dart';
 import '../services/outfit_engine.dart';
@@ -715,14 +717,25 @@ class _OfferTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.vess;
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            backgroundColor: t.ink,
-            content: Text('Opening ${offer.brand} · demo shop link',
-                style: TextStyle(fontFamily: kSans, color: t.bg)),
-          ));
+      onTap: () async {
+        // Log the click (best-effort) and open the shop / affiliate link.
+        CompleteTheLookRepository().logClick(offer);
+        final uri = Uri.tryParse(offer.url);
+        var opened = false;
+        if (uri != null) {
+          try {
+            opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } catch (_) {/* fall through to feedback */}
+        }
+        if (!opened && context.mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              backgroundColor: t.ink,
+              content: Text('Couldn\'t open ${offer.brand} — try again',
+                  style: TextStyle(fontFamily: kSans, color: t.bg)),
+            ));
+        }
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
