@@ -2,16 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/item.dart';
+import '../data/tag_options.dart';
 import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
 import '../widgets/item_image.dart';
-
-const _categories = ['Tops', 'Bottoms', 'Outerwear', 'Footwear', 'Accessories', 'Dresses', 'Other'];
-const _seasons = ['Spring', 'Summer', 'Autumn', 'Winter', 'All'];
-const _occasions = ['Casual', 'Work', 'Smart', 'Formal', 'Active'];
-const _weather = ['Hot', 'Warm', 'Mild', 'Cool', 'Cold', 'Rain'];
 
 /// Manual add / edit form. Photo capture + AI tagging arrive in M2; for now this
 /// is how a piece enters the wardrobe, and how any piece is edited.
@@ -49,7 +45,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _material = TextEditingController(text: e?.material ?? '');
     _pattern = TextEditingController(text: e?.pattern ?? '');
     _brand = TextEditingController(text: e?.brand ?? '');
-    _category = e?.category != null && _categories.contains(e!.category) ? e.category! : 'Tops';
+    _category = e?.category != null && kCategories.contains(e!.category) ? e.category! : 'Tops';
     _seasonSel.addAll(e?.seasonTags ?? const []);
     _occasionSel.addAll(e?.occasionTags ?? const []);
     _weatherSel.addAll(e?.weatherTags ?? const []);
@@ -211,7 +207,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   const _Label('Category'),
                   const SizedBox(height: 10),
                   _ChipRow(
-                    options: _categories,
+                    options: kCategories,
                     value: _category,
                     onSelect: (v) => setState(() => _category = v),
                   ),
@@ -244,7 +240,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   const _MultiLabel('Occasion', 'Pick every setting it works for'),
                   const SizedBox(height: 10),
                   _MultiChipRow(
-                    options: _occasions,
+                    options: kOccasions,
                     selected: _occasionSel,
                     onToggle: (v) => setState(() => _toggle(_occasionSel, v)),
                   ),
@@ -252,7 +248,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   const _MultiLabel('Season', 'Add all that apply'),
                   const SizedBox(height: 10),
                   _MultiChipRow(
-                    options: _seasons,
+                    options: kSeasons,
                     selected: _seasonSel,
                     onToggle: (v) => setState(() => _toggle(_seasonSel, v)),
                   ),
@@ -260,7 +256,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   const _MultiLabel('Weather', 'When it keeps you comfortable'),
                   const SizedBox(height: 10),
                   _MultiChipRow(
-                    options: _weather,
+                    options: kWeather,
                     selected: _weatherSel,
                     onToggle: (v) => setState(() => _toggle(_weatherSel, v)),
                   ),

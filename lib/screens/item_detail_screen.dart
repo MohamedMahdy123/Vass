@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/item.dart';
+import '../data/tag_options.dart';
 import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
@@ -64,12 +65,6 @@ class ItemDetailScreen extends StatelessWidget {
       if (item.pattern != null) ['Pattern', item.pattern!],
     ];
 
-    // Multi-value tag groups render as their own labelled chip rows.
-    final tagGroups = <List<dynamic>>[
-      if (item.occasionTags.isNotEmpty) ['Occasions', item.occasionTags],
-      if (item.seasonTags.isNotEmpty) ['Seasons', item.seasonTags],
-      if (item.weatherTags.isNotEmpty) ['Weather', item.weatherTags],
-    ];
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -114,10 +109,30 @@ class ItemDetailScreen extends StatelessWidget {
                           runSpacing: 8,
                           children: [for (final a in attrs) _AttrChip(label: a[0], value: a[1])],
                         ),
-                      for (final g in tagGroups) ...[
-                        const SizedBox(height: 20),
-                        _TagGroup(label: g[0] as String, values: g[1] as List<String>),
-                      ],
+                      const SizedBox(height: 20),
+                      _EditableTagGroup(
+                        label: 'Occasions',
+                        options: kOccasions,
+                        selected: item.occasionTags,
+                        onChanged: (next) =>
+                            state.updateItem(_withTags(item, occasions: next)),
+                      ),
+                      const SizedBox(height: 20),
+                      _EditableTagGroup(
+                        label: 'Seasons',
+                        options: kSeasons,
+                        selected: item.seasonTags,
+                        onChanged: (next) =>
+                            state.updateItem(_withTags(item, seasons: next)),
+                      ),
+                      const SizedBox(height: 20),
+                      _EditableTagGroup(
+                        label: 'Weather',
+                        options: kWeather,
+                        selected: item.weatherTags,
+                        onChanged: (next) =>
+                            state.updateItem(_withTags(item, weatherTags: next)),
+                      ),
                       const SizedBox(height: 28),
                       Row(
                         children: [
@@ -162,44 +177,158 @@ class ItemDetailScreen extends StatelessWidget {
   }
 }
 
-/// A labelled row of read-only tag pills for a multi-value attribute
-/// (occasions, seasons, weather).
-class _TagGroup extends StatelessWidget {
-  const _TagGroup({required this.label, required this.values});
+/// Rebuild an item with one tag list replaced, preserving every other field
+/// (including the background-removed cut-out) and keeping the legacy
+/// single-value mirrors coherent so older readers don't show a stale value.
+Item _withTags(
+  Item e, {
+  List<String>? occasions,
+  List<String>? seasons,
+  List<String>? weatherTags,
+}) {
+  final occ = occasions ?? e.occasionTags;
+  final sea = seasons ?? e.seasonTags;
+  final wea = weatherTags ?? e.weatherTags;
+  return Item(
+    id: e.id,
+    userId: e.userId,
+    name: e.name,
+    imagePath: e.imagePath,
+    processedImageUrl: e.processedImageUrl,
+    category: e.category,
+    subCategory: e.subCategory,
+    colorPrimary: e.primaryColor,
+    colorSecondary: e.colorSecondary,
+    fabricType: e.fabric,
+    pattern: e.pattern,
+    brand: e.brand,
+    occasions: occ,
+    seasons: sea,
+    weatherTags: wea,
+    favorite: e.favorite,
+    wearCount: e.wearCount,
+    lastWornAt: e.lastWornAt,
+    status: e.status,
+    localBytes: e.localBytes,
+    processedBytes: e.processedBytes,
+    // legacy mirrors
+    color: e.primaryColor,
+    material: e.fabric,
+    occasion: occ.isNotEmpty ? occ.first : null,
+    season: sea.isNotEmpty ? sea.first : null,
+  );
+}
+
+/// A labelled tag group that edits in place. Collapsed, it shows the selected
+/// pills (or an "Add" hint when empty); tapping the pencil reveals every option
+/// as a toggle, and each toggle persists immediately via [onChanged].
+class _EditableTagGroup extends StatefulWidget {
+  const _EditableTagGroup({
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
   final String label;
-  final List<String> values;
+  final List<String> options;
+  final List<String> selected;
+  final ValueChanged<List<String>> onChanged;
+
+  @override
+  State<_EditableTagGroup> createState() => _EditableTagGroupState();
+}
+
+class _EditableTagGroupState extends State<_EditableTagGroup> {
+  bool _editing = false;
+
+  void _toggle(String value) {
+    final next = List<String>.from(widget.selected);
+    if (!next.remove(value)) next.add(value);
+    widget.onChanged(next);
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
+    final selected = widget.selected;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(),
-            style: eyebrow(t.ink3, size: 10).copyWith(letterSpacing: 1.2)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            for (final v in values)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-                decoration: BoxDecoration(
-                  color: t.accentSoft,
-                  border: Border.all(color: t.accent.withOpacity(0.35)),
-                  borderRadius: BorderRadius.circular(20),
+            Text(widget.label.toUpperCase(),
+                style: eyebrow(t.ink3, size: 10).copyWith(letterSpacing: 1.2)),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => setState(() => _editing = !_editing),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  children: [
+                    Icon(_editing ? Icons.check_rounded : Icons.edit_outlined,
+                        size: 15, color: t.accent),
+                    const SizedBox(width: 4),
+                    Text(_editing ? 'Done' : 'Edit',
+                        style: TextStyle(
+                          fontFamily: kSans,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: t.accent,
+                        )),
+                  ],
                 ),
-                child: Text(v,
-                    style: TextStyle(
-                      fontFamily: kSans,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: t.accent,
-                    )),
               ),
+            ),
           ],
         ),
+        const SizedBox(height: 10),
+        if (_editing)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final o in widget.options)
+                VessChip(
+                  label: o,
+                  active: selected.contains(o),
+                  onTap: () => _toggle(o),
+                ),
+            ],
+          )
+        else if (selected.isEmpty)
+          GestureDetector(
+            onTap: () => setState(() => _editing = true),
+            behavior: HitTestBehavior.opaque,
+            child: Text('Add ${widget.label.toLowerCase()}',
+                style: TextStyle(
+                    fontFamily: kSans, fontSize: 13, color: t.ink3)),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final v in selected)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: t.accentSoft,
+                    border: Border.all(color: t.accent.withOpacity(0.35)),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(v,
+                      style: TextStyle(
+                        fontFamily: kSans,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: t.accent,
+                      )),
+                ),
+            ],
+          ),
       ],
     );
   }
