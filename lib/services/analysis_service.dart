@@ -38,19 +38,24 @@ class AnalysisService {
   Map<String, dynamic> _neutral() => {
         'name': 'New piece',
         'category': 'Tops',
-        'color': null,
-        'material': null,
+        'sub_category': null,
+        'color_primary': null,
+        'color_secondary': null,
+        'fabric_type': null,
         'pattern': null,
-        'season': null,
-        'occasion': null,
+        'occasions': <String>[],
+        'seasons': <String>[],
+        'weather_tags': <String>[],
         'brand': null,
       };
 
+  // Rich, structured tags — the shape the Haiku vision model returns live. The
+  // capture flow reads both the rich lists and the legacy single keys.
   static const _demoStubs = <Map<String, dynamic>>[
-    {'name': 'White Tee', 'category': 'Tops', 'color': 'White', 'material': 'Cotton', 'pattern': 'Solid', 'season': 'Summer', 'occasion': 'Casual', 'brand': null},
-    {'name': 'Straight Jeans', 'category': 'Bottoms', 'color': 'Indigo', 'material': 'Denim', 'pattern': 'Solid', 'season': 'All', 'occasion': 'Casual', 'brand': null},
-    {'name': 'Wool Coat', 'category': 'Outerwear', 'color': 'Camel', 'material': 'Wool', 'pattern': 'Solid', 'season': 'Winter', 'occasion': 'Smart', 'brand': null},
-    {'name': 'Leather Boots', 'category': 'Footwear', 'color': 'Brown', 'material': 'Leather', 'pattern': 'Solid', 'season': 'Autumn', 'occasion': 'Casual', 'brand': null},
-    {'name': 'Silk Scarf', 'category': 'Accessories', 'color': 'Sage', 'material': 'Silk', 'pattern': 'Solid', 'season': 'All', 'occasion': 'Smart', 'brand': null},
+    {'name': 'White Tee', 'category': 'Tops', 'sub_category': 'T-shirt', 'color_primary': 'White', 'color_secondary': null, 'fabric_type': 'Cotton', 'pattern': 'Solid', 'occasions': ['Casual'], 'seasons': ['Spring', 'Summer'], 'weather_tags': ['Warm', 'Hot'], 'brand': null},
+    {'name': 'Straight Jeans', 'category': 'Bottoms', 'sub_category': 'Jeans', 'color_primary': 'Indigo', 'color_secondary': null, 'fabric_type': 'Denim', 'pattern': 'Solid', 'occasions': ['Casual', 'Work'], 'seasons': ['All'], 'weather_tags': ['Mild', 'Cold'], 'brand': null},
+    {'name': 'Wool Coat', 'category': 'Outerwear', 'sub_category': 'Overcoat', 'color_primary': 'Camel', 'color_secondary': null, 'fabric_type': 'Wool', 'pattern': 'Solid', 'occasions': ['Smart', 'Work'], 'seasons': ['Winter'], 'weather_tags': ['Cold'], 'brand': null},
+    {'name': 'Leather Boots', 'category': 'Footwear', 'sub_category': 'Chelsea boot', 'color_primary': 'Brown', 'color_secondary': null, 'fabric_type': 'Leather', 'pattern': 'Solid', 'occasions': ['Casual', 'Smart'], 'seasons': ['Autumn', 'Winter'], 'weather_tags': ['Cold', 'Rain'], 'brand': null},
+    {'name': 'Silk Scarf', 'category': 'Accessories', 'sub_category': 'Scarf', 'color_primary': 'Sage', 'color_secondary': 'Ivory', 'fabric_type': 'Silk', 'pattern': 'Solid', 'occasions': ['Smart', 'Party'], 'seasons': ['All'], 'weather_tags': ['Mild'], 'brand': null},
   ];
 }

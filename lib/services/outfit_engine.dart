@@ -81,6 +81,13 @@ class OutfitEngine {
   }
 
   static bool _seasonFits(Item i, String? weather) {
+    // Prefer explicit weather tags (the richer signal) when the piece has them.
+    final tags = i.weatherTags.map((t) => t.toLowerCase()).toList();
+    if (tags.isNotEmpty) {
+      if (_warm(weather)) return !tags.contains('cold');
+      if (_cold(weather)) return !tags.contains('hot');
+      return true;
+    }
     final s = (i.season ?? '').toLowerCase();
     if (s.isEmpty || s == 'all') return true;
     if (_warm(weather)) return s != 'winter';

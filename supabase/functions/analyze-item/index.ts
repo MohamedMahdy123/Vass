@@ -12,7 +12,8 @@ import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// Constrain the noisy fields to the vocabulary the app understands.
+// Rich, structured tags — drive the AI stylist, weather matching and outfit
+// assembly. Multi-value occasions / seasons / weather; primary+secondary colour.
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -22,14 +23,31 @@ const SCHEMA = {
       type: "string",
       enum: ["Tops", "Bottoms", "Outerwear", "Footwear", "Accessories", "Dresses", "Other"],
     },
-    color: { type: "string" },
-    material: { type: "string" },
+    sub_category: { type: "string", description: "Specific type, e.g. 'Oxford shirt', 'Chelsea boot'" },
+    color_primary: { type: "string" },
+    color_secondary: { type: ["string", "null"], description: "Second colour if any, else null" },
+    fabric_type: { type: "string", description: "e.g. 'Cotton', 'Wool', 'Denim', 'Leather'" },
     pattern: { type: "string", description: "e.g. 'Solid', 'Striped', 'Checked'" },
-    season: { type: "string", enum: ["Spring", "Summer", "Autumn", "Winter", "All"] },
-    occasion: { type: "string", enum: ["Casual", "Work", "Smart", "Formal", "Active"] },
+    occasions: {
+      type: "array",
+      items: { type: "string", enum: ["Casual", "Work", "Smart", "Formal", "Party", "Active"] },
+      description: "All occasions this piece suits",
+    },
+    seasons: {
+      type: "array",
+      items: { type: "string", enum: ["Spring", "Summer", "Autumn", "Winter", "All"] },
+    },
+    weather_tags: {
+      type: "array",
+      items: { type: "string", enum: ["Hot", "Warm", "Mild", "Cold", "Rain"] },
+      description: "Weather conditions the piece is suitable for",
+    },
     brand: { type: ["string", "null"], description: "Brand if legible, else null" },
   },
-  required: ["name", "category", "color", "material", "pattern", "season", "occasion", "brand"],
+  required: [
+    "name", "category", "sub_category", "color_primary", "color_secondary",
+    "fabric_type", "pattern", "occasions", "seasons", "weather_tags", "brand",
+  ],
 };
 
 Deno.serve(async (req) => {
@@ -72,8 +90,11 @@ Deno.serve(async (req) => {
             {
               type: "text",
               text:
-                "Identify this single clothing item. Return its attributes. " +
-                "Be specific but only claim a brand if it is clearly legible.",
+                "Identify this single clothing item and return its structured " +
+                "attributes. List every occasion, season and weather condition it " +
+                "genuinely suits (not just one). Give a primary colour and a " +
+                "secondary colour only if there's a clear second colour. Only " +
+                "claim a brand if it is clearly legible, else null.",
             },
           ],
         },

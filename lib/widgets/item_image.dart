@@ -45,7 +45,8 @@ class ItemImage extends StatelessWidget {
       );
     }
 
-    final path = item.imagePath;
+    // Prefer the background-removed image when we have it, else the original.
+    final path = item.processedImageUrl ?? item.imagePath;
 
     // A full URL (e.g. the demo wardrobe / catalog) renders directly.
     if (path != null && (path.startsWith('http://') || path.startsWith('https://'))) {

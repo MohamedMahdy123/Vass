@@ -220,20 +220,32 @@ class _Draft {
   final name = TextEditingController();
   final color = TextEditingController();
   String category = 'Tops';
-  String? material, pattern, season, occasion, brand;
+  String? subCategory, material, pattern, season, occasion, brand, colorSecondary;
+  List<String> occasions = const [], seasons = const [], weatherTags = const [];
   bool analyzing = true;
   bool failed = false;
 
+  static List<String> _list(dynamic v) =>
+      v is List ? v.map((e) => e.toString()).toList() : const [];
+
   void apply(Map<String, dynamic> a) {
     name.text = (a['name'] as String?) ?? '';
-    color.text = (a['color'] as String?) ?? '';
+    color.text = (a['color_primary'] ?? a['color']) as String? ?? '';
     final cat = a['category'] as String?;
     if (cat != null && _categories.contains(cat)) category = cat;
-    material = a['material'] as String?;
+    subCategory = a['sub_category'] as String?;
+    material = (a['fabric_type'] ?? a['material']) as String?;
     pattern = a['pattern'] as String?;
-    season = a['season'] as String?;
-    occasion = a['occasion'] as String?;
     brand = a['brand'] as String?;
+    colorSecondary = a['color_secondary'] as String?;
+    // Rich lists, with a fallback to the legacy single values.
+    occasions = _list(a['occasions']);
+    if (occasions.isEmpty && a['occasion'] != null) occasions = [a['occasion'] as String];
+    seasons = _list(a['seasons']);
+    if (seasons.isEmpty && a['season'] != null) seasons = [a['season'] as String];
+    weatherTags = _list(a['weather_tags']);
+    occasion = occasions.isNotEmpty ? occasions.first : a['occasion'] as String?;
+    season = seasons.isNotEmpty ? seasons.first : a['season'] as String?;
     analyzing = false;
   }
 
@@ -251,13 +263,21 @@ class _Draft {
         id: '',
         name: name.text.trim().isEmpty ? 'Untitled' : name.text.trim(),
         category: category,
-        color: color.text.trim().isEmpty ? null : color.text.trim(),
-        material: material,
+        subCategory: subCategory,
+        colorPrimary: color.text.trim().isEmpty ? null : color.text.trim(),
+        colorSecondary: colorSecondary,
+        fabricType: material,
         pattern: pattern,
-        season: season,
-        occasion: occasion,
+        occasions: occasions,
+        seasons: seasons,
+        weatherTags: weatherTags,
         brand: brand,
         status: ItemStatus.reviewed,
+        // legacy mirrors for any single-value reader
+        color: color.text.trim().isEmpty ? null : color.text.trim(),
+        season: season,
+        occasion: occasion,
+        material: material,
       );
 
   void dispose() {
