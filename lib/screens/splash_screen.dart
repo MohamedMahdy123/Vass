@@ -40,73 +40,90 @@ class _SplashScreenState extends State<SplashScreen>
       body: GestureDetector(
         onTap: _begin,
         behavior: HitTestBehavior.opaque,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Two rings, offset by half the cycle.
-                      _Ring(_rings, 0),
-                      _Ring(_rings, 0.5),
-                      Container(
-                        width: 98,
-                        height: 98,
-                        decoration: BoxDecoration(
-                          color: t.accent,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: t.accent.withOpacity(0.4),
-                              blurRadius: 54,
-                              offset: const Offset(0, 24),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Transform.translate(
-                          offset: const Offset(0, -4),
-                          child: const Text(
-                            'V',
-                            style: TextStyle(
-                              fontFamily: kSerif,
-                              fontSize: 54,
-                              height: 1,
-                              color: Colors.white,
+        // Fill the viewport so the Stack centres against the full screen and
+        // the bottom CTA can span the whole width — otherwise the Stack
+        // collapses to its widest child (the 160px logo) and everything hugs
+        // the left edge.
+        child: SizedBox.expand(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 160,
+                    height: 160,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Two rings, offset by half the cycle.
+                        _Ring(_rings, 0),
+                        _Ring(_rings, 0.5),
+                        Container(
+                          width: 98,
+                          height: 98,
+                          decoration: BoxDecoration(
+                            color: t.accent,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: t.accent.withOpacity(0.4),
+                                blurRadius: 54,
+                                offset: const Offset(0, 24),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Transform.translate(
+                            offset: const Offset(0, -4),
+                            child: const Text(
+                              'V',
+                              style: TextStyle(
+                                fontFamily: kSerif,
+                                fontSize: 54,
+                                height: 1,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 38),
+                  Text('Vess', style: serif(context, 42)),
+                  const SizedBox(height: 10),
+                  Text('Dress with intention',
+                      style: eyebrow(t.ink2, size: 12.5).copyWith(
+                        letterSpacing: 2.5,
+                        fontWeight: FontWeight.w400,
+                      )),
+                ],
+              ),
+              // Full-width, centered CTA so the tap target isn't a narrow
+              // left-biased sliver — the whole strip along the bottom is tappable.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 44,
+                child: TextButton(
+                  onPressed: _begin,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: const RoundedRectangleBorder(),
+                  ),
+                  child: Text(
+                    'TAP TO BEGIN',
+                    textAlign: TextAlign.center,
+                    style:
+                        eyebrow(t.ink3).copyWith(fontWeight: FontWeight.w500),
                   ),
                 ),
-                const SizedBox(height: 38),
-                Text('Vess', style: serif(context, 42)),
-                const SizedBox(height: 10),
-                Text('Dress with intention',
-                    style: eyebrow(t.ink2, size: 12.5).copyWith(
-                      letterSpacing: 2.5,
-                      fontWeight: FontWeight.w400,
-                    )),
-              ],
-            ),
-            Positioned(
-              bottom: 60,
-              child: TextButton(
-                onPressed: _begin,
-                child: Text(
-                  'TAP TO BEGIN',
-                  style: eyebrow(t.ink3).copyWith(fontWeight: FontWeight.w500),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
