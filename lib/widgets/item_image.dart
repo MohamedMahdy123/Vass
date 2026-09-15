@@ -3,10 +3,22 @@ import 'package:flutter/material.dart';
 import '../core/supabase_service.dart';
 import '../data/models/item.dart';
 import '../data/wardrobe_repository.dart';
+import 'garment_silhouette.dart';
 
-/// Renders a garment. When the item has a photo we show it; until then (manual
-/// adds, pre-M2) we show a color swatch derived from the item's real `color`
-/// attribute — a truthful representation, not a fake photo.
+/// The single garment renderer for the whole app — wardrobe grid, item cards,
+/// outfit suggestions and try-on chips all go through this so every piece reads
+/// like a clean e-commerce product shot: the matted garment centred on a subtle
+/// neutral tonal card.
+///
+/// Rendering priority (most product-shot-like first):
+///   1. `processedBytes`      — just-processed transparent cut-out (in memory)
+///   2. `processedImageUrl`   — stored transparent cut-out (URL or storage path)
+///   3. `localBytes`          — the raw just-captured photo (pre-processing)
+///   4. `imagePath`           — the raw original photo (URL or storage path)
+///   5. a flat-lay garment silhouette in the item's colour (demo/seed, manual)
+///
+/// Cut-outs (1–2) are matted `contain` with padding on the card so nothing is
+/// clipped; raw photos (3–4) fill the card `cover`.
 class ItemImage extends StatelessWidget {
   const ItemImage({super.key, required this.item, this.radius = 18, this.child});
 
@@ -14,88 +26,106 @@ class ItemImage extends StatelessWidget {
   final double radius;
   final Widget? child;
 
+  /// Inset kept around a matted cut-out so the garment never touches the edge.
+  static const double _matPadding = 0.10;
+
   @override
   Widget build(BuildContext context) {
-    final base = swatchColor(item.color);
     final r = BorderRadius.circular(radius);
 
-    final swatch = Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: const Alignment(-0.72, -0.94),
-          end: const Alignment(0.72, 0.94),
-          colors: [base, _darken(base, 0.72)],
-        ),
-        borderRadius: r,
-      ),
-      child: child,
-    );
-
-    // Just-captured bytes render instantly, no network round-trip — prefer the
-    // background-removed cut-out (contained on the swatch) over the original.
-    final memBytes = item.processedBytes ?? item.localBytes;
-    if (memBytes != null) {
-      final cutout = item.processedBytes != null;
-      return ClipRRect(
-        borderRadius: r,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (cutout) swatch, // transparent PNG sits on the tonal ground
-            Image.memory(memBytes, fit: cutout ? BoxFit.contain : BoxFit.cover),
-            if (child != null) child!,
-          ],
-        ),
+    // 1 & 2 — transparent cut-out in memory: mat it, contained, on the card.
+    if (item.processedBytes != null) {
+      return _card(
+        context,
+        r,
+        _matted(Image.memory(item.processedBytes!, fit: BoxFit.contain)),
       );
     }
 
-    // Prefer the background-removed image when we have it, else the original.
-    final path = item.processedImageUrl ?? item.imagePath;
+    // 3 — raw just-captured photo (no cut-out yet): show it filling the card.
+    if (item.localBytes != null) {
+      return _card(context, r, Image.memory(item.localBytes!, fit: BoxFit.cover));
+    }
 
-    // A full URL (e.g. the demo wardrobe / catalog) renders directly.
+    // Prefer the stored cut-out over the stored original.
+    final cutoutUrl = item.processedImageUrl;
+    final originalUrl = item.imagePath;
+    final path = cutoutUrl ?? originalUrl;
+    final isCutout = cutoutUrl != null;
+
+    // 2/4 — a full URL (demo/catalog/cut-out CDN) renders directly.
     if (path != null && (path.startsWith('http://') || path.startsWith('https://'))) {
-      return ClipRRect(
-        borderRadius: r,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(path, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => swatch),
-            if (child != null) child!,
-          ],
-        ),
-      );
+      final img = Image.network(path,
+          fit: isCutout ? BoxFit.contain : BoxFit.cover,
+          errorBuilder: (_, __, ___) => _silhouette());
+      return _card(context, r, isCutout ? _matted(img) : img);
     }
 
     // A storage path is only meaningful against a live backend.
-    if (path == null || !SupabaseService.isReady) return swatch;
+    if (path == null || !SupabaseService.isReady) {
+      // 5 — no photo at all: clean flat-lay silhouette.
+      return _card(context, r, _silhouette());
+    }
 
-    return FutureBuilder<String>(
-      future: WardrobeRepository().signedUrl(path),
-      builder: (context, snap) {
-        if (!snap.hasData) return swatch;
-        return ClipRRect(
-          borderRadius: r,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(snap.data!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => swatch),
-              if (child != null) child!,
-            ],
-          ),
-        );
-      },
+    return _card(
+      context,
+      r,
+      FutureBuilder<String>(
+        future: WardrobeRepository().signedUrl(path),
+        builder: (context, snap) {
+          if (!snap.hasData) return _silhouette();
+          final img = Image.network(snap.data!,
+              fit: isCutout ? BoxFit.contain : BoxFit.cover,
+              errorBuilder: (_, __, ___) => _silhouette());
+          return isCutout ? _matted(img) : img;
+        },
+      ),
     );
   }
-}
 
-Color _darken(Color c, double factor) => Color.fromARGB(
-      c.alpha,
-      (c.red * factor).round(),
-      (c.green * factor).round(),
-      (c.blue * factor).round(),
+  /// The neutral catalog card: a soft off-white (or deep neutral in dark mode)
+  /// ground with a whisper of the item's hue and a faint vignette, so pieces
+  /// stay distinct while reading as clean product cards.
+  Widget _card(BuildContext context, BorderRadius r, Widget content) {
+    final base = swatchColor(item.primaryColor);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final ground = dark ? const Color(0xFF23211E) : const Color(0xFFF3F0E9);
+    final tinted = Color.alphaBlend(base.withOpacity(dark ? 0.10 : 0.06), ground);
+    final edge = Color.alphaBlend(
+        (dark ? Colors.black : Colors.black).withOpacity(dark ? 0.22 : 0.06), tinted);
+
+    return ClipRRect(
+      borderRadius: r,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0, -0.15),
+                radius: 0.95,
+                colors: [tinted, edge],
+              ),
+            ),
+          ),
+          content,
+          if (child != null) child!,
+        ],
+      ),
     );
+  }
+
+  /// Centre and pad a contained cut-out so it never clips the card edge.
+  Widget _matted(Widget img) => LayoutBuilder(
+        builder: (context, c) {
+          final pad = c.biggest.shortestSide * _matPadding;
+          return Padding(padding: EdgeInsets.all(pad), child: Center(child: img));
+        },
+      );
+
+  Widget _silhouette() =>
+      GarmentSilhouette(category: item.category, color: swatchColor(item.primaryColor));
+}
 
 /// Maps a color name to a swatch base. Covers the design's own palette plus
 /// common wardrobe colors; unknown names hash to a deterministic muted tone so

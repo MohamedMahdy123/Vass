@@ -321,7 +321,17 @@ class _DraftCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.memory(draft.bytes, width: 84, height: 108, fit: BoxFit.cover),
+            child: draft.processedBytes != null
+                // Show the transparent cut-out matted on a neutral card, like
+                // it'll appear across the app.
+                ? Container(
+                    width: 84,
+                    height: 108,
+                    color: const Color(0xFFF3F0E9),
+                    padding: const EdgeInsets.all(8),
+                    child: Image.memory(draft.processedBytes!, fit: BoxFit.contain),
+                  )
+                : Image.memory(draft.bytes, width: 84, height: 108, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
           Expanded(
