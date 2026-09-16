@@ -2,25 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-/// A real product from the free FakeStore API (fakestoreapi.com) — used in demo
-/// mode to dress the sample wardrobe with genuine catalog photos.
-class FakeStoreProduct {
-  const FakeStoreProduct({
-    required this.title,
-    required this.category,
-    required this.imageUrl,
-  });
+import 'catalog_photo.dart';
 
-  final String title;
-
-  /// Mapped to the app's own categories: Tops / Outerwear / Accessories.
-  final String category;
-  final String imageUrl;
-}
-
-/// Fetches clothing from the free, no-auth FakeStore API. Best-effort: any
-/// failure (offline, CORS, timeout) returns an empty list so the caller keeps
-/// its placeholder images. Demo-only — real user items are never touched.
+/// Fetches clothing from the free, no-auth FakeStore API (fakestoreapi.com).
+/// Covers Tops and Outerwear (t-shirts + jackets). Best-effort: any failure
+/// (offline, CORS, timeout) returns an empty list so callers keep placeholders.
+/// Demo-only — real user items are never touched.
 class FakeStoreService {
   FakeStoreService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -28,8 +15,8 @@ class FakeStoreService {
   static const _base = 'https://fakestoreapi.com';
   static const _categories = ["men's clothing", "women's clothing"];
 
-  Future<List<FakeStoreProduct>> clothing() async {
-    final out = <FakeStoreProduct>[];
+  Future<List<CatalogPhoto>> clothing() async {
+    final out = <CatalogPhoto>[];
     for (final c in _categories) {
       try {
         final uri = Uri.parse('$_base/products/category/${Uri.encodeComponent(c)}');
@@ -41,11 +28,9 @@ class FakeStoreService {
           final img = (p['image'] ?? '').toString();
           if (!img.startsWith('http')) continue;
           final title = (p['title'] ?? '').toString();
-          out.add(FakeStoreProduct(
-            title: title,
-            category: _mapCategory(title),
-            imageUrl: img,
-          ));
+          final cat = _mapCategory(title);
+          if (cat == null) continue; // skip bags/other
+          out.add(CatalogPhoto(title: title, category: cat, imageUrl: img));
         }
       } catch (_) {
         // best-effort per category
@@ -54,12 +39,12 @@ class FakeStoreService {
     return out;
   }
 
-  /// FakeStore's clothing is mostly t-shirts and jackets; map by title keyword
-  /// into the app's own category vocabulary.
-  String _mapCategory(String title) {
+  /// FakeStore's clothing is t-shirts and jackets; map by title keyword. Bags
+  /// (the backpack) are dropped so they don't stand in for a scarf.
+  String? _mapCategory(String title) {
     final t = title.toLowerCase();
     if (t.contains('jacket') || t.contains('coat')) return 'Outerwear';
-    if (t.contains('backpack') || t.contains('bag')) return 'Accessories';
+    if (t.contains('backpack') || t.contains('bag')) return null;
     return 'Tops';
   }
 }

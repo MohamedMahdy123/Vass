@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../core/supabase_service.dart';
 import '../data/models/item.dart';
 import '../data/wardrobe_repository.dart';
+import '../services/catalog_photo.dart';
+import '../services/dummyjson_service.dart';
 import '../services/fakestore_service.dart';
 
 /// The wardrobe, backed by Postgres when Supabase is configured and the user is
@@ -57,9 +59,9 @@ class WardrobeState extends ChangeNotifier {
       } else if (!_loadedOnce) {
         // Copy into a growable list — the seed is a const (unmodifiable) list.
         _items = List.of(_demoSeed());
-        // Best-effort: dress the demo closet with real FakeStore catalog photos
-        // where categories match. Fire-and-forget so placeholders show instantly.
-        _applyFakeStorePhotos();
+        // Best-effort: dress the demo closet with real catalog photos where
+        // categories match. Fire-and-forget so placeholders show instantly.
+        _applyDemoPhotos();
       }
       _loadedOnce = true;
     } catch (e) {
@@ -161,22 +163,28 @@ class WardrobeState extends ChangeNotifier {
     }
   }
 
-  /// Overlay real FakeStore product photos onto matching demo items (Tops and
-  /// Outerwear — the categories FakeStore actually covers), replacing their
-  /// placeholder cut-outs. Best-effort and non-blocking; on any failure the
-  /// items keep their bundled placeholder assets.
+  /// Overlay real catalog photos onto matching demo items, replacing their
+  /// placeholder cut-outs. FakeStore covers Tops + Outerwear; DummyJSON fills
+  /// Footwear, Dresses and Accessories. Bottoms have no free source and keep
+  /// their silhouette. Best-effort and non-blocking; on any failure the items
+  /// keep their bundled placeholder assets.
   final _fakeStore = FakeStoreService();
-  Future<void> _applyFakeStorePhotos() async {
+  final _dummyJson = DummyJsonService();
+  Future<void> _applyDemoPhotos() async {
     try {
-      final products = await _fakeStore.clothing();
-      if (products.isEmpty) return;
+      final results = await Future.wait([
+        _fakeStore.clothing(),
+        _dummyJson.clothing(),
+      ]);
 
+      // Build category → image pools from both sources.
       final pools = <String, List<String>>{};
-      for (final p in products) {
-        if (p.category == 'Tops' || p.category == 'Outerwear') {
+      for (final list in results) {
+        for (final CatalogPhoto p in list) {
           (pools[p.category] ??= <String>[]).add(p.imageUrl);
         }
       }
+      if (pools.isEmpty) return;
 
       final cursor = <String, int>{};
       var changed = false;
@@ -188,7 +196,7 @@ class WardrobeState extends ChangeNotifier {
         final existing = it.processedImageUrl ?? '';
         if (existing.startsWith('http')) continue;
         final pool = pools[cat];
-        if (pool == null) continue;
+        if (pool == null || pool.isEmpty) continue;
         final k = cursor[cat] ?? 0;
         if (k >= pool.length) continue;
         cursor[cat] = k + 1;
