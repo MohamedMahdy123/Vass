@@ -45,9 +45,14 @@ def pts(seq):
 TOP = [(34, 22), (16, 35), (25, 50), (34, 45), (34, 84), (66, 84), (66, 45),
        (75, 50), (84, 35), (66, 22), (58, 30), (50, 31), (42, 30)]
 
-OUTER = [(34, 18), (13, 32), (23, 53), (33, 47), (33, 88), (46, 88), (46, 40),
-         (50, 46), (54, 40), (54, 88), (67, 88), (67, 47), (77, 53), (87, 32),
-         (66, 18), (54, 30), (50, 42), (46, 30)]
+# A clean long coat: top block extended to the hem, simple collar notch — no
+# self-intersecting lapel split (the centre seam is drawn separately).
+OUTER = [(34, 18), (12, 32), (23, 54), (33, 48), (33, 90), (67, 90), (67, 48),
+         (77, 54), (88, 32), (66, 18), (58, 27), (50, 30), (42, 27)]
+
+# Side-profile shoe (heel left, vamp peak centre, toe right).
+SHOE = [(18, 66), (18, 57), (27, 53), (41, 53), (52, 48), (66, 46), (79, 49),
+        (86, 58), (86, 66), (83, 69), (20, 69)]
 
 BOTTOMS = [(33, 14), (67, 14), (65, 52), (61, 88), (52, 88), (50, 52),
            (48, 88), (39, 88), (35, 52)]
@@ -75,9 +80,7 @@ def shape_mask(kind):
     elif kind == "accessories":
         d.rounded_rectangle([s(27), s(30), s(73), s(70)], radius=s(9), fill=255)
     elif kind == "footwear":
-        # a low shoe: rounded body + toe
-        d.rounded_rectangle([s(16), s(46), s(86), s(72)], radius=s(13), fill=255)
-        d.pieslice([s(56), s(30), s(92), s(74)], 180, 360, fill=255)
+        draw_poly(d, SHOE, 255)
     else:  # folded / other
         d.rounded_rectangle([s(24), s(26), s(76), s(74)], radius=s(11), fill=255)
     return m
