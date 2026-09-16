@@ -742,13 +742,9 @@ class _OfferTile extends StatelessWidget {
         children: [
           AspectRatio(
             aspectRatio: 3 / 4,
-            child: Container(
-              decoration: BoxDecoration(
-                color: t.sand2,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 26, color: t.ink3),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _offerImage(context),
             ),
           ),
           const SizedBox(height: 7),
@@ -764,6 +760,29 @@ class _OfferTile extends StatelessWidget {
                   color: t.ink)),
         ],
       ),
+    );
+  }
+
+  /// The real product photo (e.g. a ShopStyle catalog image) when the offer
+  /// carries one, falling back to a neutral icon tile for mock offers or a
+  /// broken URL — so the shop row shows real garments once live.
+  Widget _offerImage(BuildContext context) {
+    final t = context.vess;
+    final url = offer.imageUrl;
+    final placeholder = Container(
+      color: t.sand2,
+      alignment: Alignment.center,
+      child: Icon(icon, size: 26, color: t.ink3),
+    );
+    if (url == null || !(url.startsWith('http://') || url.startsWith('https://'))) {
+      return placeholder;
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => placeholder,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : Container(color: t.sand2),
     );
   }
 }

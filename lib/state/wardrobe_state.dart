@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/supabase_service.dart';
 import '../data/models/item.dart';
 import '../data/wardrobe_repository.dart';
+import '../services/fakestore_service.dart';
 
 /// The wardrobe, backed by Postgres when Supabase is configured and the user is
 /// signed in — otherwise an in-memory demo list so the app is always usable.
@@ -56,6 +57,9 @@ class WardrobeState extends ChangeNotifier {
       } else if (!_loadedOnce) {
         // Copy into a growable list — the seed is a const (unmodifiable) list.
         _items = List.of(_demoSeed());
+        // Best-effort: dress the demo closet with real FakeStore catalog photos
+        // where categories match. Fire-and-forget so placeholders show instantly.
+        _applyFakeStorePhotos();
       }
       _loadedOnce = true;
     } catch (e) {
@@ -154,6 +158,46 @@ class WardrobeState extends ChangeNotifier {
         _error = 'Could not delete the item.';
         notifyListeners();
       }
+    }
+  }
+
+  /// Overlay real FakeStore product photos onto matching demo items (Tops and
+  /// Outerwear — the categories FakeStore actually covers), replacing their
+  /// placeholder cut-outs. Best-effort and non-blocking; on any failure the
+  /// items keep their bundled placeholder assets.
+  final _fakeStore = FakeStoreService();
+  Future<void> _applyFakeStorePhotos() async {
+    try {
+      final products = await _fakeStore.clothing();
+      if (products.isEmpty) return;
+
+      final pools = <String, List<String>>{};
+      for (final p in products) {
+        if (p.category == 'Tops' || p.category == 'Outerwear') {
+          (pools[p.category] ??= <String>[]).add(p.imageUrl);
+        }
+      }
+
+      final cursor = <String, int>{};
+      var changed = false;
+      for (var i = 0; i < _items.length; i++) {
+        final it = _items[i];
+        final cat = it.category;
+        if (cat == null) continue;
+        // Don't touch real user photos or already-http images.
+        final existing = it.processedImageUrl ?? '';
+        if (existing.startsWith('http')) continue;
+        final pool = pools[cat];
+        if (pool == null) continue;
+        final k = cursor[cat] ?? 0;
+        if (k >= pool.length) continue;
+        cursor[cat] = k + 1;
+        _items[i] = it.copyWith(processedImageUrl: pool[k]);
+        changed = true;
+      }
+      if (changed) notifyListeners();
+    } catch (_) {
+      // keep placeholders
     }
   }
 
