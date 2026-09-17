@@ -14,14 +14,15 @@ class DummyJsonService {
   final http.Client _client;
   static const _base = 'https://dummyjson.com';
 
-  /// DummyJSON category slug → the app's own category.
+  /// DummyJSON category slug → the app's own category. Bags are intentionally
+  /// excluded — the only demo accessory is a scarf, and a handbag photo would
+  /// misrepresent it, so accessories keep their clean silhouette instead.
   static const _slugs = <String, String>{
     'mens-shirts': 'Tops',
     'tops': 'Tops',
     'mens-shoes': 'Footwear',
     'womens-shoes': 'Footwear',
     'womens-dresses': 'Dresses',
-    'womens-bags': 'Accessories',
   };
 
   Future<List<CatalogPhoto>> clothing() async {
