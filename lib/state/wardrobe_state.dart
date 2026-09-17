@@ -181,7 +181,9 @@ class WardrobeState extends ChangeNotifier {
         Item(id: 'demo-8', name: 'Wool Overcoat', processedImageUrl: 'https://fakestoreapi.com/img/81XH0e8fefL._AC_UY879_t.png', category: 'Outerwear', color: 'Charcoal', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Work', brand: 'Kestrel', favorite: true, status: ItemStatus.reviewed),
         Item(id: 'demo-9', name: 'Leather Loafers', processedImageUrl: 'https://cdn.dummyjson.com/product-images/mens-shoes/puma-future-rider-trainers/thumbnail.webp', category: 'Footwear', color: 'Cognac', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', status: ItemStatus.reviewed),
         Item(id: 'demo-10', name: 'Derby Shoes', processedImageUrl: 'https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/thumbnail.webp', category: 'Footwear', color: 'Brown', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-11', name: 'Cashmere Scarf', processedImageUrl: 'https://images.unsplash.com/photo-1609803384069-19f3e5a70e75?w=800&q=80&auto=format&fit=crop', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
+        // AI background-removed cut-out (transparent PNG) so the scarf reads as
+        // an isolated white-bg product shot, matted on the neutral card.
+        Item(id: 'demo-11', name: 'Cashmere Scarf', processedImageUrl: 'assets/garments/scarf.png', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
         Item(id: 'demo-12', name: 'Linen Dress', processedImageUrl: 'https://cdn.dummyjson.com/product-images/womens-dresses/dress-pea/thumbnail.webp', category: 'Dresses', color: 'Bone', material: 'Linen', pattern: 'Solid', season: 'Summer', occasion: 'Smart', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
       ];
 }
