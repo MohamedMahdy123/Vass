@@ -58,8 +58,11 @@ class _OutfitsScreenState extends State<OutfitsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: t.accent,
-        onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const OutfitCanvasScreen())),
+        onPressed: () {
+          context.read<OutfitState>().clearCanvas();
+          Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const OutfitCanvasScreen()));
+        },
         icon: const Icon(Icons.add, color: Colors.white, size: 20),
         label: const Text('New look',
             style: TextStyle(

@@ -65,7 +65,7 @@ class OutfitCanvasScreen extends StatelessWidget {
                     child: Text(
                       outfit.isEmpty
                           ? 'Tap pieces below to build a look'
-                          : '${outfit.count} pieces · tap a piece to remove',
+                          : '${outfit.count} pieces',
                       style: TextStyle(fontFamily: kSans, fontSize: 13, color: t.ink3),
                     ),
                   ),
@@ -164,41 +164,31 @@ class _Canvas extends StatelessWidget {
       for (final s in OutfitCanvasScreen._display)
         if (outfit.canvas[s] != null) MapEntry(s, outfit.canvas[s]!),
     ];
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Column(
-        children: [
-          for (final e in placed)
-            GestureDetector(
-              onTap: () => context.read<OutfitState>().removeSlot(e.key),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: SizedBox(
-                  width: 190,
-                  height: 190,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(child: ItemImage(item: e.value, radius: 18)),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: t.card,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: t.line),
-                          ),
-                          child: Icon(Icons.close_rounded, size: 16, color: t.ink2),
-                        ),
-                      ),
-                    ],
+    // Tighten the piece height so a full head-to-toe look fits without
+    // scrolling; centre it vertically when the outfit is short.
+    final h = placed.length >= 4 ? 122.0 : (placed.length == 3 ? 150.0 : 180.0);
+    return LayoutBuilder(
+      builder: (context, cons) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: cons.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final e in placed)
+                GestureDetector(
+                  onTap: () => context.read<OutfitState>().removeSlot(e.key),
+                  child: SizedBox(
+                    width: 230,
+                    height: h,
+                    child: ItemImage(item: e.value, radius: 16),
                   ),
                 ),
-              ),
-            ),
-        ],
+              const SizedBox(height: 6),
+              Text('Tap a piece to remove it',
+                  style: TextStyle(fontFamily: kSans, fontSize: 12, color: t.ink3)),
+            ],
+          ),
+        ),
       ),
     );
   }

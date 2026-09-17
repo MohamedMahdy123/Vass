@@ -118,11 +118,13 @@ class OutfitState extends ChangeNotifier {
   void seedFrom(List<Item> wardrobe) {
     if (_seeded || wardrobe.isEmpty) return;
     _seeded = true;
-    Item? first(String cat) =>
-        wardrobe.where((i) => i.category == cat).cast<Item?>().firstWhere(
-              (i) => true,
-              orElse: () => null,
-            );
+    // Pick the nth item of a category (wraps), so seeded looks use different
+    // pieces instead of all sharing the first of each category.
+    List<Item> pool(String cat) => wardrobe.where((i) => i.category == cat).toList();
+    Item? pick(String cat, int n) {
+      final p = pool(cat);
+      return p.isEmpty ? null : p[n % p.length];
+    }
 
     void add(String title, String occasion, List<Item?> picks) {
       final items = picks.whereType<Item>().toList();
@@ -139,9 +141,15 @@ class OutfitState extends ChangeNotifier {
     }
 
     add('Street Refined', 'Casual',
-        [first('Outerwear'), first('Tops'), first('Bottoms'), first('Footwear')]);
+        [pick('Outerwear', 0), pick('Tops', 0), pick('Bottoms', 0), pick('Footwear', 0)]);
     add('Weekend Casual', 'Casual',
-        [first('Tops'), first('Bottoms'), first('Footwear'), first('Accessories')]);
+        [pick('Tops', 1), pick('Bottoms', 1), pick('Footwear', 1), pick('Accessories', 0)]);
+    add('Smart Layers', 'Work',
+        [pick('Outerwear', 1), pick('Tops', 2), pick('Bottoms', 0), pick('Footwear', 2)]);
+    add('Day Out', 'Casual',
+        [pick('Tops', 3), pick('Bottoms', 1), pick('Footwear', 3)]);
+    add('Evening Ease', 'Smart',
+        [pick('Dresses', 0), pick('Footwear', 1), pick('Accessories', 0)]);
     if (_saved.isNotEmpty) notifyListeners();
   }
 
