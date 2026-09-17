@@ -42,16 +42,14 @@ class OutfitCanvasScreen extends StatelessWidget {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: outfit.isEmpty
-                ? null
-                : () => Navigator.of(context).push(MaterialPageRoute<void>(
-                    builder: (_) => const OutfitsScreen())),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const OutfitsScreen())),
             child: Text('My Outfits',
                 style: TextStyle(
                     fontFamily: kSans,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: outfit.isEmpty ? t.ink3 : t.accent)),
+                    color: t.accent)),
           ),
         ],
       ),

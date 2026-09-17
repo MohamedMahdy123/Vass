@@ -336,7 +336,7 @@ class _DraftCard extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: draft.analyzing
-                ? _analyzing(context)
+                ? _analyzing(context, draft)
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -404,7 +404,7 @@ class _DraftCard extends StatelessWidget {
     );
   }
 
-  Widget _analyzing(BuildContext context) {
+  Widget _analyzing(BuildContext context, _Draft draft) {
     final t = context.vess;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -417,7 +417,9 @@ class _DraftCard extends StatelessWidget {
                 strokeWidth: 2.2, valueColor: AlwaysStoppedAnimation(t.accent)),
           ),
           const SizedBox(width: 10),
-          Text('Tagging with AI…',
+          Text(draft.processedBytes == null
+              ? 'Casting ghost-mannequin magic…'
+              : 'Tagging with AI…',
               style: TextStyle(fontFamily: kSans, fontSize: 13.5, color: t.ink2)),
         ],
       ),
