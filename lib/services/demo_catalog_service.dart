@@ -12,10 +12,10 @@ import '../data/models/item.dart';
 /// angles per product) and FakeStore (fakestoreapi.com). Best-effort: any
 /// failure returns an empty list and the caller keeps the curated seed.
 ///
-/// Note: free catalogs only hold ~50 distinct fashion products, so to reach
-/// 100+ this uses up to two photos per product (different angles). Bottoms and
-/// Outerwear are sparse — no free source carries jeans or coats beyond the
-/// curated seed.
+/// Note: free catalogs only hold ~50 distinct fashion products, so by default
+/// this takes one photo per product (no repeats) — the closet lands near ~60
+/// distinct pieces with the curated seed. Bottoms and Outerwear are sparse —
+/// no free source carries jeans or coats beyond the curated seed.
 class DemoCatalogService {
   DemoCatalogService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -42,9 +42,9 @@ class DemoCatalogService {
   ];
 
   /// Fetch and assemble the catalog. [maxPerProduct] caps how many angles of a
-  /// single product become separate items (keeps the grid from filling with
-  /// near-duplicates).
-  Future<List<Item>> build({int maxPerProduct = 2}) async {
+  /// single product become separate items. Default 1 → one photo per product,
+  /// so nothing repeats (the grid shows only distinct garments).
+  Future<List<Item>> build({int maxPerProduct = 1}) async {
     final items = <Item>[];
     await _addDummyJson(items, maxPerProduct);
     await _addFakeStore(items);
