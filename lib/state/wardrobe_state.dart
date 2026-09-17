@@ -3,9 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../core/supabase_service.dart';
 import '../data/models/item.dart';
 import '../data/wardrobe_repository.dart';
-import '../services/catalog_photo.dart';
-import '../services/dummyjson_service.dart';
-import '../services/fakestore_service.dart';
 
 /// The wardrobe, backed by Postgres when Supabase is configured and the user is
 /// signed in — otherwise an in-memory demo list so the app is always usable.
@@ -59,9 +56,6 @@ class WardrobeState extends ChangeNotifier {
       } else if (!_loadedOnce) {
         // Copy into a growable list — the seed is a const (unmodifiable) list.
         _items = List.of(_demoSeed());
-        // Best-effort: dress the demo closet with real catalog photos where
-        // categories match. Fire-and-forget so placeholders show instantly.
-        _applyDemoPhotos();
       }
       _loadedOnce = true;
     } catch (e) {
@@ -163,52 +157,6 @@ class WardrobeState extends ChangeNotifier {
     }
   }
 
-  /// Overlay real catalog photos onto matching demo items, replacing their
-  /// placeholder cut-outs. FakeStore covers Tops + Outerwear; DummyJSON fills
-  /// Footwear, Dresses and Accessories. Bottoms have no free source and keep
-  /// their silhouette. Best-effort and non-blocking; on any failure the items
-  /// keep their bundled placeholder assets.
-  final _fakeStore = FakeStoreService();
-  final _dummyJson = DummyJsonService();
-  Future<void> _applyDemoPhotos() async {
-    try {
-      final results = await Future.wait([
-        _fakeStore.clothing(),
-        _dummyJson.clothing(),
-      ]);
-
-      // Build category → image pools from both sources.
-      final pools = <String, List<String>>{};
-      for (final list in results) {
-        for (final CatalogPhoto p in list) {
-          (pools[p.category] ??= <String>[]).add(p.imageUrl);
-        }
-      }
-      if (pools.isEmpty) return;
-
-      final cursor = <String, int>{};
-      var changed = false;
-      for (var i = 0; i < _items.length; i++) {
-        final it = _items[i];
-        final cat = it.category;
-        if (cat == null) continue;
-        // Don't touch real user photos or already-http images.
-        final existing = it.processedImageUrl ?? '';
-        if (existing.startsWith('http')) continue;
-        final pool = pools[cat];
-        if (pool == null || pool.isEmpty) continue;
-        final k = cursor[cat] ?? 0;
-        if (k >= pool.length) continue;
-        cursor[cat] = k + 1;
-        _items[i] = it.copyWith(processedImageUrl: pool[k]);
-        changed = true;
-      }
-      if (changed) notifyListeners();
-    } catch (_) {
-      // keep placeholders
-    }
-  }
-
   int _localSeq = 0;
   // Assign a client-side id (demo mode / offline) while preserving every rich
   // field — copyWith carries occasions/seasons/weather and the rest through.
@@ -216,23 +164,24 @@ class WardrobeState extends ChangeNotifier {
         id: 'local-${DateTime.now().microsecondsSinceEpoch}-${_localSeq++}',
       );
 
-  /// A small starter closet for demo mode. Each piece carries a bundled
-  /// transparent cut-out ([processedImageUrl] → `assets/garments/…`), so demo
-  /// mode renders through [ItemImage] as clean catalog product shots — the same
-  /// treatment a background-removed user photo gets. If an asset is missing the
-  /// widget falls back to a flat-lay silhouette in the item's colour.
+  /// A small starter closet for demo mode. Each piece carries a real, verified
+  /// product-photo URL so the closet reads as a clean catalog — no item falls
+  /// back to a silhouette. Photos come from license-clean free sources:
+  /// FakeStore (fakestoreapi.com), DummyJSON (cdn.dummyjson.com) and Pexels
+  /// (free commercial use). ItemImage still falls back to a colour silhouette
+  /// only if a URL fails to load, so the grid never breaks.
   List<Item> _demoSeed() => const [
-        Item(id: 'demo-1', name: 'Ribbed Wool Sweater', processedImageUrl: 'assets/garments/demo-1.png', category: 'Tops', color: 'Ash', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-2', name: 'Oxford Shirt', processedImageUrl: 'assets/garments/demo-2.png', category: 'Tops', color: 'White', material: 'Cotton', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Nord', status: ItemStatus.reviewed),
-        Item(id: 'demo-3', name: 'Cotton Tee', processedImageUrl: 'assets/garments/demo-3.png', category: 'Tops', color: 'Sand', material: 'Cotton', pattern: 'Solid', season: 'Summer', occasion: 'Casual', brand: 'Lune', status: ItemStatus.reviewed),
-        Item(id: 'demo-4', name: 'Chunky Knit', processedImageUrl: 'assets/garments/demo-4.png', category: 'Tops', color: 'Cream', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-5', name: 'Straight Jeans', processedImageUrl: 'assets/garments/demo-5.png', category: 'Bottoms', color: 'Indigo', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-6', name: 'Washed Denim', processedImageUrl: 'assets/garments/demo-6.png', category: 'Bottoms', color: 'Blue', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', status: ItemStatus.reviewed),
-        Item(id: 'demo-7', name: 'Camel Trench', processedImageUrl: 'assets/garments/demo-7.png', category: 'Outerwear', color: 'Camel', material: 'Cotton', pattern: 'Solid', season: 'Spring', occasion: 'Smart', brand: 'Lune', status: ItemStatus.reviewed),
-        Item(id: 'demo-8', name: 'Wool Overcoat', processedImageUrl: 'assets/garments/demo-8.png', category: 'Outerwear', color: 'Charcoal', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Work', brand: 'Kestrel', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-9', name: 'Leather Loafers', processedImageUrl: 'assets/garments/demo-9.png', category: 'Footwear', color: 'Cognac', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', status: ItemStatus.reviewed),
-        Item(id: 'demo-10', name: 'Derby Shoes', processedImageUrl: 'assets/garments/demo-10.png', category: 'Footwear', color: 'Brown', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-11', name: 'Cashmere Scarf', processedImageUrl: 'assets/garments/demo-11.png', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
-        Item(id: 'demo-12', name: 'Linen Dress', processedImageUrl: 'assets/garments/demo-12.png', category: 'Dresses', color: 'Bone', material: 'Linen', pattern: 'Solid', season: 'Summer', occasion: 'Smart', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-1', name: 'Ribbed Wool Sweater', processedImageUrl: 'https://fakestoreapi.com/img/71-3HjGNDUL._AC_SY879._SX._UX._SY._UY_t.png', category: 'Tops', color: 'Ash', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-2', name: 'Oxford Shirt', processedImageUrl: 'https://fakestoreapi.com/img/71YXzeOuslL._AC_UY879_t.png', category: 'Tops', color: 'White', material: 'Cotton', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Nord', status: ItemStatus.reviewed),
+        Item(id: 'demo-3', name: 'Cotton Tee', processedImageUrl: 'https://fakestoreapi.com/img/71z3kpMAYsL._AC_UY879_t.png', category: 'Tops', color: 'Sand', material: 'Cotton', pattern: 'Solid', season: 'Summer', occasion: 'Casual', brand: 'Lune', status: ItemStatus.reviewed),
+        Item(id: 'demo-4', name: 'Chunky Knit', processedImageUrl: 'https://fakestoreapi.com/img/61pHAEJ4NML._AC_UX679_t.png', category: 'Tops', color: 'Cream', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Halden', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-5', name: 'Straight Jeans', processedImageUrl: 'https://images.pexels.com/photos/4109759/pexels-photo-4109759.jpeg?auto=compress&cs=tinysrgb&w=800', category: 'Bottoms', color: 'Indigo', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-6', name: 'Washed Denim', processedImageUrl: 'https://images.pexels.com/photos/4210863/pexels-photo-4210863.jpeg?auto=compress&cs=tinysrgb&w=800', category: 'Bottoms', color: 'Blue', material: 'Denim', pattern: 'Solid', season: 'All', occasion: 'Casual', brand: 'Beau', status: ItemStatus.reviewed),
+        Item(id: 'demo-7', name: 'Camel Trench', processedImageUrl: 'https://fakestoreapi.com/img/71li-ujtlUL._AC_UX679_t.png', category: 'Outerwear', color: 'Camel', material: 'Cotton', pattern: 'Solid', season: 'Spring', occasion: 'Smart', brand: 'Lune', status: ItemStatus.reviewed),
+        Item(id: 'demo-8', name: 'Wool Overcoat', processedImageUrl: 'https://fakestoreapi.com/img/81XH0e8fefL._AC_UY879_t.png', category: 'Outerwear', color: 'Charcoal', material: 'Wool', pattern: 'Solid', season: 'Winter', occasion: 'Work', brand: 'Kestrel', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-9', name: 'Leather Loafers', processedImageUrl: 'https://cdn.dummyjson.com/product-images/mens-shoes/puma-future-rider-trainers/thumbnail.webp', category: 'Footwear', color: 'Cognac', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', status: ItemStatus.reviewed),
+        Item(id: 'demo-10', name: 'Derby Shoes', processedImageUrl: 'https://cdn.dummyjson.com/product-images/mens-shoes/nike-air-jordan-1-red-and-black/thumbnail.webp', category: 'Footwear', color: 'Brown', material: 'Leather', pattern: 'Solid', season: 'All', occasion: 'Work', brand: 'Atelier', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-11', name: 'Cashmere Scarf', processedImageUrl: 'https://images.pexels.com/photos/16049198/pexels-photo-16049198.jpeg?auto=compress&cs=tinysrgb&w=800', category: 'Accessories', color: 'Sage', material: 'Cashmere', pattern: 'Solid', season: 'Winter', occasion: 'Casual', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
+        Item(id: 'demo-12', name: 'Linen Dress', processedImageUrl: 'https://cdn.dummyjson.com/product-images/womens-dresses/dress-pea/thumbnail.webp', category: 'Dresses', color: 'Bone', material: 'Linen', pattern: 'Solid', season: 'Summer', occasion: 'Smart', brand: 'Lune', favorite: true, status: ItemStatus.reviewed),
       ];
 }
