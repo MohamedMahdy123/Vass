@@ -57,6 +57,25 @@ class _StylistScreenState extends State<StylistScreen> {
     }
   }
 
+  Widget _promptTile(BuildContext context, String p) {
+    final t = context.vess;
+    return GestureDetector(
+      onTap: () => _send(p),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: t.card,
+          border: Border.all(color: t.line),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(p,
+            style: TextStyle(fontFamily: kSans, fontSize: 13.5, color: t.ink2)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
@@ -96,45 +115,44 @@ class _StylistScreenState extends State<StylistScreen> {
           ),
           Divider(color: t.line, height: 1),
           Expanded(
-            child: ListView(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-              children: [
-                for (final m in state.messages) ...[
-                  _Bubble(message: m),
-                  const SizedBox(height: 12),
-                ],
-                if (state.typing) const _TypingBubble(),
-                if (state.showPrompts) ...[
-                  const SizedBox(height: 8),
-                  Text('TRY ASKING',
-                      style: eyebrow(t.ink3, size: 11)
-                          .copyWith(letterSpacing: 1.2)),
-                  const SizedBox(height: 10),
-                  for (final p in _kQuickPrompts) ...[
-                    GestureDetector(
-                      onTap: () => _send(p),
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: t.card,
-                          border: Border.all(color: t.line),
-                          borderRadius: BorderRadius.circular(14),
+            child: state.showPrompts
+                // Fresh chat: centre the greeting + starter prompts vertically
+                // so they don't sit top-stuck above a big empty gap.
+                ? LayoutBuilder(
+                    builder: (context, cons) => SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: cons.maxHeight - 38),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final m in state.messages) ...[
+                              _Bubble(message: m),
+                              const SizedBox(height: 12),
+                            ],
+                            const SizedBox(height: 12),
+                            Text('TRY ASKING',
+                                style: eyebrow(t.ink3, size: 11)
+                                    .copyWith(letterSpacing: 1.2)),
+                            const SizedBox(height: 10),
+                            for (final p in _kQuickPrompts) _promptTile(context, p),
+                          ],
                         ),
-                        child: Text(p,
-                            style: TextStyle(
-                                fontFamily: kSans,
-                                fontSize: 13.5,
-                                color: t.ink2)),
                       ),
                     ),
-                  ],
-                ],
-              ],
-            ),
+                  )
+                : ListView(
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                    children: [
+                      for (final m in state.messages) ...[
+                        _Bubble(message: m),
+                        const SizedBox(height: 12),
+                      ],
+                      if (state.typing) const _TypingBubble(),
+                    ],
+                  ),
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 108),
