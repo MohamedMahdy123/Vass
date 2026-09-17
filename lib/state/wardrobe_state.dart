@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/supabase_service.dart';
 import '../data/models/item.dart';
 import '../data/wardrobe_repository.dart';
+import '../services/demo_catalog_service.dart';
 
 /// The wardrobe, backed by Postgres when Supabase is configured and the user is
 /// signed in — otherwise an in-memory demo list so the app is always usable.
@@ -56,6 +57,9 @@ class WardrobeState extends ChangeNotifier {
       } else if (!_loadedOnce) {
         // Copy into a growable list — the seed is a const (unmodifiable) list.
         _items = List.of(_demoSeed());
+        // Fill out the demo closet to 100+ pieces from free product catalogs.
+        // Fire-and-forget so the curated seed shows instantly.
+        _fillDemoCatalog();
       }
       _loadedOnce = true;
     } catch (e) {
@@ -154,6 +158,23 @@ class WardrobeState extends ChangeNotifier {
         _error = 'Could not delete the item.';
         notifyListeners();
       }
+    }
+  }
+
+  /// Best-effort: grow the demo closet past 100 pieces with real catalog
+  /// photos. Appended after the curated seed; on any failure the seed stands.
+  final _catalog = DemoCatalogService();
+  Future<void> _fillDemoCatalog() async {
+    try {
+      final extra = await _catalog.build();
+      if (extra.isEmpty) return;
+      final seen = _items.map((i) => i.processedImageUrl).toSet();
+      final added = extra.where((i) => seen.add(i.processedImageUrl)).toList();
+      if (added.isEmpty) return;
+      _items.addAll(added);
+      notifyListeners();
+    } catch (_) {
+      // keep the curated seed
     }
   }
 
