@@ -101,7 +101,7 @@ class _OutfitsScreenState extends State<OutfitsScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 18,
-                      childAspectRatio: 0.66,
+                      childAspectRatio: 0.8,
                     ),
                     itemCount: shown.length,
                     itemBuilder: (context, i) => _OutfitCard(outfit: shown[i]),
@@ -129,9 +129,10 @@ class _OutfitCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          AspectRatio(
+            aspectRatio: 1,
             child: Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: t.card,
                 borderRadius: BorderRadius.circular(20),
@@ -144,13 +145,17 @@ class _OutfitCard extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 6,
                     crossAxisSpacing: 6,
+                    childAspectRatio: 1,
                     children: [
-                      for (final i in imgs) ItemImage(item: i, radius: 10),
+                      for (var k = 0; k < 4; k++)
+                        k < imgs.length
+                            ? ItemImage(item: imgs[k], radius: 12)
+                            : const SizedBox.shrink(),
                     ],
                   ),
                   Positioned(
-                    top: 0,
-                    right: 0,
+                    top: 4,
+                    right: 4,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -175,19 +180,11 @@ class _OutfitCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   fontFamily: kSerif, fontSize: 15.5, color: t.ink)),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final tag in outfit.tags.take(2))
-                Text(tag,
-                    style: TextStyle(
-                        fontFamily: kSans,
-                        fontSize: 11.5,
-                        color: t.ink3)),
-            ],
-          ),
+          const SizedBox(height: 3),
+          Text(outfit.tags.take(2).join('  ·  '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontFamily: kSans, fontSize: 11.5, color: t.ink3)),
         ],
       ),
     );

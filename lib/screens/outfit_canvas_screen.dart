@@ -164,48 +164,41 @@ class _Canvas extends StatelessWidget {
       for (final s in OutfitCanvasScreen._display)
         if (outfit.canvas[s] != null) MapEntry(s, outfit.canvas[s]!),
     ];
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-      decoration: BoxDecoration(
-        color: t.card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: t.line),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            for (final e in placed)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: GestureDetector(
-                  onTap: () => context.read<OutfitState>().removeSlot(e.key),
-                  child: SizedBox(
-                    width: 150,
-                    height: 170,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(child: ItemImage(item: e.value, radius: 16)),
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: t.bg.withOpacity(0.85),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.close_rounded, size: 15, color: t.ink2),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Column(
+        children: [
+          for (final e in placed)
+            GestureDetector(
+              onTap: () => context.read<OutfitState>().removeSlot(e.key),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: SizedBox(
+                  width: 190,
+                  height: 190,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: ItemImage(item: e.value, radius: 18)),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: t.card,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: t.line),
                           ),
+                          child: Icon(Icons.close_rounded, size: 16, color: t.ink2),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

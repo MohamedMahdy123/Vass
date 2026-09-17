@@ -91,19 +91,14 @@ class ItemImage extends StatelessWidget {
     );
   }
 
-  /// The catalog card ground: a flat, un-tinted near-white (or deep neutral in
-  /// dark mode) so garments sit on a clean background with no colour cast —
-  /// white-background product photos blend in seamlessly.
+  /// No ground — the garment renders directly with a transparent background so
+  /// it sits on whatever is behind it (no tile, no colour cast).
   Widget _card(BuildContext context, BorderRadius r, Widget content) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final ground = dark ? const Color(0xFF201E1B) : const Color(0xFFFAF9F6);
-
     return ClipRRect(
       borderRadius: r,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ColoredBox(color: ground),
           content,
           if (child != null) child!,
         ],
