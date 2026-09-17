@@ -91,31 +91,19 @@ class ItemImage extends StatelessWidget {
     );
   }
 
-  /// The neutral catalog card: a soft off-white (or deep neutral in dark mode)
-  /// ground with a whisper of the item's hue and a faint vignette, so pieces
-  /// stay distinct while reading as clean product cards.
+  /// The catalog card ground: a flat, un-tinted near-white (or deep neutral in
+  /// dark mode) so garments sit on a clean background with no colour cast —
+  /// white-background product photos blend in seamlessly.
   Widget _card(BuildContext context, BorderRadius r, Widget content) {
-    final base = swatchColor(item.primaryColor);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final ground = dark ? const Color(0xFF23211E) : const Color(0xFFF3F0E9);
-    final tinted = Color.alphaBlend(base.withOpacity(dark ? 0.10 : 0.06), ground);
-    final edge = Color.alphaBlend(
-        (dark ? Colors.black : Colors.black).withOpacity(dark ? 0.22 : 0.06), tinted);
+    final ground = dark ? const Color(0xFF201E1B) : const Color(0xFFFAF9F6);
 
     return ClipRRect(
       borderRadius: r,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0, -0.15),
-                radius: 0.95,
-                colors: [tinted, edge],
-              ),
-            ),
-          ),
+          ColoredBox(color: ground),
           content,
           if (child != null) child!,
         ],
