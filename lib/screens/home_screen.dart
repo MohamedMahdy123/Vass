@@ -13,7 +13,7 @@ import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
 import '../widgets/item_image.dart';
-import 'builder_screen.dart';
+import 'outfit_canvas_screen.dart';
 import 'item_detail_screen.dart';
 import 'shell.dart';
 
@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
             radius: 18,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const BuilderScreen()),
+              MaterialPageRoute<void>(builder: (_) => const OutfitCanvasScreen()),
             ),
             child: Row(
               children: [
