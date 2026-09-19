@@ -70,5 +70,48 @@ void main() {
       img.fill(image, color: img.ColorRgba8(0, 0, 0, 0));
       expect(cropToSubject(img.encodePng(image)), isNull);
     });
+
+    test('padding clamps at the image edge (no out-of-bounds)', () {
+      // Opaque block flush against the top-left corner: padding can't go < 0.
+      final image = img.Image(width: 80, height: 80, numChannels: 4);
+      img.fill(image, color: img.ColorRgba8(0, 0, 0, 0));
+      img.fillRect(image,
+          x1: 0, y1: 0, x2: 19, y2: 19, color: img.ColorRgba8(10, 120, 200, 255));
+
+      final out = img.decodePng(cropToSubject(img.encodePng(image))!)!;
+      // box = 20px; pad = round(20*0.10)=2, but left/top clamp to 0 → 20 + 2.
+      expect(out.width, 22);
+      expect(out.height, 22);
+    });
+
+    test('bounding box spans multiple opaque regions', () {
+      // Two blobs — the crop must cover both, not just one.
+      final image = img.Image(width: 100, height: 100, numChannels: 4);
+      img.fill(image, color: img.ColorRgba8(0, 0, 0, 0));
+      img.fillRect(image,
+          x1: 10, y1: 10, x2: 20, y2: 20, color: img.ColorRgba8(255, 0, 0, 255));
+      img.fillRect(image,
+          x1: 70, y1: 60, x2: 80, y2: 80, color: img.ColorRgba8(0, 255, 0, 255));
+
+      final out = img.decodePng(cropToSubject(img.encodePng(image))!)!;
+      // bbox x:10..80 (71), y:10..80 (71); pad round(71*.1)=7 each side, clamped.
+      // x: 3..87 → 85 wide;  y: 3..87 → 85 tall.
+      expect(out.width, 85);
+      expect(out.height, 85);
+    });
+
+    test('ignores a near-transparent matting fringe (alpha <= 12)', () {
+      // A faint fringe (alpha 8) should NOT expand the box; only the solid
+      // subject (alpha 255) counts.
+      final image = img.Image(width: 60, height: 60, numChannels: 4);
+      img.fill(image, color: img.ColorRgba8(0, 0, 0, 8)); // whole-canvas haze
+      img.fillRect(image,
+          x1: 25, y1: 25, x2: 34, y2: 34, color: img.ColorRgba8(200, 200, 200, 255));
+
+      final out = img.decodePng(cropToSubject(img.encodePng(image))!)!;
+      // box = 10px; pad = round(10*.1)=1 → 12. If the haze counted, it'd be ~60.
+      expect(out.width, 12);
+      expect(out.height, 12);
+    });
   });
 }
