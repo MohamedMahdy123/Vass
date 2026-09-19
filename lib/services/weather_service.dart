@@ -49,12 +49,33 @@ class WeatherService {
 
   static const _timeout = Duration(seconds: 8);
 
+  /// Latitude from the last successful location lookup (any this session).
+  /// Lets the seasonal fallback flip hemisphere even when the forecast call
+  /// itself failed or the date was out of range.
+  double? lastLat;
+
   /// Map a temperature (°C) to the engine's weather register.
   static String weatherFromTemp(double c) {
     if (c >= 24) return 'Hot';
     if (c >= 17) return 'Warm';
     if (c >= 10) return 'Mild';
     return 'Cold';
+  }
+
+  /// Hemisphere-aware season-by-month estimate — the fallback when there's no
+  /// live forecast (offline, or the date is beyond the ~16-day range). Southern
+  /// hemisphere (lat < 0) has its seasons flipped; unknown latitude assumes
+  /// northern.
+  static String seasonalWeather(DateTime date, {double? lat}) {
+    final south = (lat ?? 0) < 0;
+    final m = date.month;
+    final decFeb = m == 12 || m <= 2;
+    final junAug = m >= 6 && m <= 8;
+    final isWinter = south ? junAug : decFeb;
+    final isSummer = south ? decFeb : junAug;
+    if (isWinter) return 'Cold';
+    if (isSummer) return 'Warm';
+    return 'Mild';
   }
 
   Future<WeatherReading?> forecastFor(DateTime date) async {
@@ -100,6 +121,7 @@ class WeatherService {
     final lat = (j['latitude'] as num?)?.toDouble();
     final lon = (j['longitude'] as num?)?.toDouble();
     if (lat == null || lon == null) return null;
+    lastLat = lat; // remembered for the hemisphere-aware seasonal fallback
     return _Loc(lat, lon, j['city'] as String?);
   }
 

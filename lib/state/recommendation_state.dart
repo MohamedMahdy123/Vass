@@ -69,9 +69,16 @@ class RecommendationState extends ChangeNotifier {
   Future<void> _applyForecast() async {
     if (_weatherManual || _forecast != null) return;
     final f = await _weatherSvc.forecastFor(DateTime.now());
-    if (f == null) return;
-    _forecast = f;
-    _weather = f.weatherForEngine; // carries the rain signal for the engine
+    if (f != null) {
+      _forecast = f;
+      _weather = f.weatherForEngine; // carries the rain signal for the engine
+    } else {
+      // No live forecast — a hemisphere-aware seasonal estimate beats flat 'Mild'.
+      _weather = WeatherService.seasonalWeather(
+        DateTime.now(),
+        lat: _weatherSvc.lastLat,
+      );
+    }
   }
 
   /// Generate a fresh look for the current occasion/weather from [wardrobe].

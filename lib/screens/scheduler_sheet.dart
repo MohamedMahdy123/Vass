@@ -94,14 +94,11 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
     });
   }
 
-  /// Season-by-month estimate (northern hemisphere) — the fallback when there's
-  /// no live forecast (offline, or the date is beyond the ~16-day range).
-  String _seasonalWeather() {
-    final m = _date.month;
-    if (m == 12 || m <= 2) return 'Cold';
-    if (m >= 6 && m <= 8) return 'Warm';
-    return 'Mild';
-  }
+  /// Hemisphere-aware season estimate — the fallback when there's no live
+  /// forecast (offline, or the date is beyond the ~16-day range). Uses the last
+  /// resolved latitude so southern-hemisphere users get flipped seasons.
+  String _seasonalWeather() =>
+      WeatherService.seasonalWeather(_date, lat: _weatherSvc.lastLat);
 
   /// The engine weather string for the chosen option. 'Auto' uses the live
   /// forecast when available, else the seasonal estimate.
