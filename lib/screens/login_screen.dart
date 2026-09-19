@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -194,9 +195,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   String _authError(Object e) {
-    final s = e.toString();
-    if (s.contains('Invalid login')) return 'Email or password is incorrect.';
-    return 'Could not sign in. Please try again.';
+    // Surface the real Supabase reason (e.g. "Invalid login credentials",
+    // "Email not confirmed", "Signups not allowed for this instance") so
+    // failures are diagnosable instead of a generic message.
+    if (e is AuthException) {
+      if (e.message.contains('Invalid login')) {
+        return 'Email or password is incorrect — Register first if you have no account.';
+      }
+      return e.message;
+    }
+    return 'Could not sign in: $e';
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -58,7 +59,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         (_) => false,
       );
     } catch (e) {
-      if (mounted) _toast('Could not create your account. Please try again.');
+      // Surface the real reason — most often "Signups not allowed for this
+      // instance" (enable it in Auth settings) or "User already registered".
+      if (mounted) {
+        _toast(e is AuthException ? e.message : 'Could not create account: $e');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
