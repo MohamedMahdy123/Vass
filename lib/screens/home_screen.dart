@@ -374,6 +374,27 @@ class _RecommendationCard extends StatelessWidget {
                               .copyWith(letterSpacing: 1.7)),
                       const SizedBox(height: 5),
                       Text(outfit.title, style: serif(context, 24)),
+                      if (rec.forecast != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(
+                                rec.forecast!.rain
+                                    ? Icons.umbrella_outlined
+                                    : Icons.wb_sunny_outlined,
+                                size: 14,
+                                color: t.ink3),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text('Dressed for ${rec.forecast!.short}',
+                                  style: TextStyle(
+                                      fontFamily: kSans,
+                                      fontSize: VessType.caption,
+                                      color: t.ink3)),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -6,6 +6,7 @@ import '../data/models/outfit.dart';
 import '../data/outfits_repository.dart';
 import '../services/outfit_engine.dart';
 import '../services/recommendation_service.dart';
+import '../services/weather_service.dart';
 
 /// Drives "What should I wear today?" — asks the recommender for a look from the
 /// user's own wardrobe, shows the "why", and turns accept/reject into learning.
@@ -15,6 +16,7 @@ import '../services/recommendation_service.dart';
 class RecommendationState extends ChangeNotifier {
   final _service = RecommendationService();
   final _repo = OutfitsRepository();
+  final _weatherSvc = WeatherService();
 
   /// Below this, a look can't be coherent — nudge the user to add pieces first.
   static const minItems = 4;
@@ -26,6 +28,12 @@ class RecommendationState extends ChangeNotifier {
   String _occasion = 'Everyday';
   String _weather = 'Mild';
   int _seed = 0;
+
+  // Live weather: today's forecast for the user's location. Used automatically
+  // unless the user manually overrides the weather.
+  WeatherReading? _forecast;
+  bool _weatherManual = false;
+  WeatherReading? get forecast => _forecast;
 
   // Demo-mode learning: rejected pieces we shouldn't suggest again this session.
   final Set<String> _dislikedDemo = {};
@@ -49,9 +57,21 @@ class RecommendationState extends ChangeNotifier {
   }
 
   void setWeather(String w) {
+    _weatherManual = true; // user override — stop auto-applying the forecast
     if (w == _weather) return;
     _weather = w;
     notifyListeners();
+  }
+
+  /// Fetch today's forecast for the user's location and adopt it as the weather
+  /// (unless the user has manually chosen one). Best-effort; silent on failure.
+  /// Cached for the session so regenerating doesn't refetch.
+  Future<void> _applyForecast() async {
+    if (_weatherManual || _forecast != null) return;
+    final f = await _weatherSvc.forecastFor(DateTime.now());
+    if (f == null) return;
+    _forecast = f;
+    _weather = f.engineWeather;
   }
 
   /// Generate a fresh look for the current occasion/weather from [wardrobe].
@@ -68,6 +88,9 @@ class RecommendationState extends ChangeNotifier {
     _generating = true;
     _error = null;
     notifyListeners();
+
+    // Make today's pick weather-aware from the real forecast.
+    await _applyForecast();
 
     try {
       final suggestion = await _service.recommend(
