@@ -102,7 +102,15 @@ Deno.serve(async (req) => {
     if (!geminiResp.ok) {
       const detail = await geminiResp.text();
       console.error("gemini generateContent failed", geminiResp.status, detail);
-      return json({ error: `Gemini error ${geminiResp.status}`, detail }, 502);
+      // Surface a diagnostic in `error` (the app shows this) so we can see the
+      // real cause without an app rebuild: status, Gemini's message, and which
+      // models this key can actually use.
+      const diag = await diagnoseModels(apiKey);
+      const msg = extractMessage(detail);
+      return json({
+        error: `Gemini ${geminiResp.status}: ${msg} | ${diag}`,
+        detail,
+      }, 502);
     }
 
     const result = await geminiResp.json();
@@ -166,6 +174,34 @@ async function pickAvailableModel(apiKey: string): Promise<string | null> {
     return usable.find((m) => m.includes("flash")) ?? usable[0] ?? null;
   } catch (_) {
     return null;
+  }
+}
+
+// Diagnostic: report the ListModels HTTP status, or the usable model names, so
+// a failed call explains itself in the app toast.
+async function diagnoseModels(apiKey: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+    );
+    if (!res.ok) return `ListModels HTTP ${res.status}`;
+    const data = await res.json();
+    const usable = (data?.models ?? [])
+      .filter((m: { supportedGenerationMethods?: string[] }) =>
+        (m.supportedGenerationMethods ?? []).includes("generateContent"))
+      .map((m: { name?: string }) => (m.name ?? "").replace(/^models\//, ""))
+      .slice(0, 8);
+    return `usable=[${usable.join(", ")}]`;
+  } catch (e) {
+    return `ListModels failed: ${e}`;
+  }
+}
+
+function extractMessage(detail: string): string {
+  try {
+    return (JSON.parse(detail)?.error?.message ?? detail).toString().slice(0, 180);
+  } catch (_) {
+    return detail.slice(0, 180);
   }
 }
 
