@@ -26,8 +26,10 @@ apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    // flutter_local_notifications v17 requires compileSdk 34.
-    compileSdkVersion 34
+    // ML Kit Subject Segmentation requires compileSdk 35 (flutter_local_notifications
+    // needs 34). AGP 7.4 predates SDK 35, so android.suppressUnsupportedCompileSdk
+    // in gradle.properties silences its "untested compileSdk" hard stop.
+    compileSdkVersion 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
