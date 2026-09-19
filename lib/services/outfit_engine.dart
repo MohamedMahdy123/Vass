@@ -80,6 +80,24 @@ class OutfitEngine {
         w.contains('winter') || w.contains('chill');
   }
 
+  static bool _rainy(String? weather) {
+    final w = (weather ?? '').toLowerCase();
+    return w.contains('rain') || w.contains('wet') || w.contains('shower') ||
+        w.contains('drizzle') || w.contains('storm');
+  }
+
+  /// A piece that reads as rain-ready (waterproof/shower-friendly outerwear).
+  static bool _rainReady(Item i) {
+    final hay =
+        '${i.name} ${i.subCategory ?? ''} ${i.fabricType ?? i.material ?? ''}'
+            .toLowerCase();
+    const cues = [
+      'rain', 'waterproof', 'water-resistant', 'trench', 'parka', 'anorak',
+      'mac', 'shell', 'gore-tex', 'goretex',
+    ];
+    return cues.any(hay.contains);
+  }
+
   static bool _seasonFits(Item i, String? weather) {
     // Prefer explicit weather tags (the richer signal) when the piece has them.
     final tags = i.weatherTags.map((t) => t.toLowerCase()).toList();
@@ -126,6 +144,8 @@ class OutfitEngine {
         }
       }
       if (!_seasonFits(i, weather)) s += 4;
+      // When rain's likely, pull rain-ready outerwear to the front of its slot.
+      if (_rainy(weather) && slotOf(i) == 'Outerwear' && _rainReady(i)) s -= 3;
       final occ = (i.occasion ?? '').toLowerCase();
       if (occ.isNotEmpty && occ != 'all') {
         s += (formality(i.occasion) - targetFormality).abs().toDouble();
@@ -197,10 +217,13 @@ class OutfitEngine {
     chosen.add(shoes);
     slotFor['Shoes'] = shoes;
 
-    // Outerwear: required when cold, optional otherwise (skip if warm).
-    if (!_warm(weather)) {
+    // Outerwear: required when cold OR rain's likely (even if warm — you still
+    // want a layer to stay dry), optional for dressier looks, skipped when it's
+    // warm and dry. The pool is already weather-filtered, so a rainy-but-warm
+    // day picks a light shell rather than a wool coat.
+    if (_cold(weather) || _rainy(weather) || targetFormality >= 2) {
       final outer = pick('Outerwear');
-      if (outer != null && (_cold(weather) || targetFormality >= 2)) {
+      if (outer != null) {
         chosen.add(outer);
         slotFor['Outerwear'] = outer;
       }
@@ -272,11 +295,17 @@ class OutfitEngine {
       parts.add('a tonal, neutral palette that always reads as considered');
     }
 
+    final rainy = _rainy(weather);
     final outer = slotFor['Outerwear'];
     if (outer != null) {
-      final w = _cold(weather)
-          ? "it's cold out, so the ${outer.name.toLowerCase()} does the heavy lifting"
-          : 'the ${outer.name.toLowerCase()} adds a layer you can shed indoors';
+      final String w;
+      if (rainy) {
+        w = "rain's likely, so the ${outer.name.toLowerCase()} keeps you dry";
+      } else if (_cold(weather)) {
+        w = "it's cold out, so the ${outer.name.toLowerCase()} does the heavy lifting";
+      } else {
+        w = 'the ${outer.name.toLowerCase()} adds a layer you can shed indoors';
+      }
       parts.add(w);
     }
 
@@ -287,7 +316,14 @@ class OutfitEngine {
 
     // Join into one warm sentence, capitalized, single period.
     final joined = parts.join(', ');
-    return '${joined[0].toUpperCase()}${joined.substring(1)}.';
+    var out = '${joined[0].toUpperCase()}${joined.substring(1)}.';
+    // Rain nudge — grab an umbrella (and flag it if there's no outer layer).
+    if (rainy) {
+      out += outer == null
+          ? " Rain's likely — grab an umbrella and a jacket on your way out."
+          : " Grab an umbrella on your way out.";
+    }
+    return out;
   }
 
   // === Complete-the-Look: gap detection ======================================

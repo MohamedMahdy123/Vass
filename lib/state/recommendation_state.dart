@@ -71,7 +71,7 @@ class RecommendationState extends ChangeNotifier {
     final f = await _weatherSvc.forecastFor(DateTime.now());
     if (f == null) return;
     _forecast = f;
-    _weather = f.engineWeather;
+    _weather = f.weatherForEngine; // carries the rain signal for the engine
   }
 
   /// Generate a fresh look for the current occasion/weather from [wardrobe].

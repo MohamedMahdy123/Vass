@@ -23,6 +23,10 @@ class WeatherReading {
     final wet = rain ? ' · rain likely' : '';
     return '$where$t · $engineWeather$wet';
   }
+
+  /// Weather string for the outfit engine — carries the rain signal so the
+  /// engine can nudge outerwear even when it isn't cold.
+  String get weatherForEngine => rain ? '$engineWeather rain' : engineWeather;
 }
 
 class _Loc {

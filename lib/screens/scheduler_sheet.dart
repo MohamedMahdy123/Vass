@@ -114,7 +114,7 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
       case 'Mild':
         return 'Mild';
       default:
-        return _forecast?.engineWeather ?? _seasonalWeather();
+        return _forecast?.weatherForEngine ?? _seasonalWeather();
     }
   }
 
