@@ -39,8 +39,9 @@ jobs:
       # Fat APK (all ABIs) — one file, easy to sideload. Uses the debug signing
       # config wired in android/app/build.gradle, so it installs without a
       # release keystore.
+      # --no-shrink skips R8 code shrinking (D8 still desugars via AGP 7.4).
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-shrink
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
