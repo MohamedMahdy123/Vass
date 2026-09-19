@@ -1,0 +1,50 @@
+name: Build Android APK
+
+# Builds a release APK in CI (real Gradle, no local sandbox limits) and uploads
+# it as a downloadable artifact. Trigger it from the Actions tab (Run workflow)
+# or by pushing to main/master.
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Java 11 matches the Flutter 3.7 / AGP 7.x toolchain this project uses.
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      # Pin Flutter to the exact version the app was built with (3.7.12).
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.7.12'
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Fat APK (all ABIs) — one file, easy to sideload. Uses the debug signing
+      # config wired in android/app/build.gradle, so it installs without a
+      # release keystore.
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vess-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

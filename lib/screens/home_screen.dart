@@ -8,6 +8,7 @@ import '../data/models/product_offer.dart';
 import '../services/outfit_engine.dart';
 import '../state/complete_the_look_state.dart';
 import '../state/recommendation_state.dart';
+import '../state/stylist_state.dart';
 import '../state/wardrobe_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
@@ -15,6 +16,7 @@ import '../widgets/common.dart';
 import '../widgets/item_image.dart';
 import 'outfit_canvas_screen.dart';
 import 'outfits_screen.dart';
+import 'scheduler_sheet.dart';
 import 'item_detail_screen.dart';
 import 'shell.dart';
 
@@ -113,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _CompleteTheLookCard(),
           const SizedBox(height: 14),
 
-          _StylistPrompt(onTap: () => Shell.of(context)?.goTo(3)),
+          const _StylistPrompt(),
           const SizedBox(height: 12),
 
           VessCard(
@@ -130,6 +132,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text('Build a look yourself',
                       style: TextStyle(
                           fontFamily: kSans, fontSize: 14.5, color: t.ink)),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: t.ink3),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          VessCard(
+            radius: 18,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            onTap: () => showSchedulerSheet(context),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 20, color: t.accent),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Schedule an outfit',
+                          style: TextStyle(
+                              fontFamily: kSans, fontSize: 14.5, color: t.ink)),
+                      const SizedBox(height: 1),
+                      Text('Plan ahead for an occasion & get reminded',
+                          style: TextStyle(
+                              fontFamily: kSans, fontSize: 12, color: t.ink3)),
+                    ],
+                  ),
                 ),
                 Icon(Icons.chevron_right, size: 20, color: t.ink3),
               ],
@@ -827,38 +857,83 @@ class _CardLabel extends StatelessWidget {
       );
 }
 
-class _StylistPrompt extends StatelessWidget {
-  const _StylistPrompt({required this.onTap});
-  final VoidCallback onTap;
+/// A real quick-ask box: type a styling question here and it's sent straight
+/// into the stylist conversation, then jumps to the Stylist tab to show the
+/// reply (with any actionable deep-link card).
+class _StylistPrompt extends StatefulWidget {
+  const _StylistPrompt();
+
+  @override
+  State<_StylistPrompt> createState() => _StylistPromptState();
+}
+
+class _StylistPromptState extends State<_StylistPrompt> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    final wardrobe = context.read<WardrobeState>().items;
+    context.read<StylistState>().send(text, wardrobe);
+    _controller.clear();
+    FocusScope.of(context).unfocus();
+    // Jump to the Stylist tab so the answer (and its action card) is visible.
+    Shell.of(context)?.goTo(3);
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
-    return VessCard(
-      radius: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-      onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: t.card,
+        border: Border.all(color: t.line),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: t.shadow,
+      ),
       child: Row(
         children: [
           Icon(Icons.auto_awesome, size: 20, color: t.accent),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('Ask your stylist anything…',
-                style: TextStyle(fontFamily: kSans, fontSize: 14.5, color: t.ink3)),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(
-              color: t.accentSoft,
-              borderRadius: BorderRadius.circular(999),
+            child: TextField(
+              controller: _controller,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _send(),
+              style: TextStyle(fontFamily: kSans, fontSize: 14.5, color: t.ink),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: 'Ask your stylist anything…',
+                hintStyle: TextStyle(
+                    fontFamily: kSans, fontSize: 14.5, color: t.ink3),
+              ),
             ),
-            child: Text('Quick AI',
-                style: TextStyle(
-                  fontFamily: kSans,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: t.accent,
-                )),
+          ),
+          const SizedBox(width: 8),
+          Semantics(
+            button: true,
+            label: 'Ask the stylist',
+            child: Material(
+              color: t.accent,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _send,
+                child: const SizedBox(
+                  width: 38,
+                  height: 38,
+                  child: Icon(Icons.arrow_upward, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
           ),
         ],
       ),

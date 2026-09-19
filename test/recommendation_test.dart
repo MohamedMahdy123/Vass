@@ -88,6 +88,27 @@ void main() {
       ];
       expect(OutfitEngine.build(onlyAccessories), isNull);
     });
+
+    test('preferColor pulls a matching-colour top forward', () {
+      // Two casual tops fit; asking for emerald should surface the Emerald Knit.
+      final o = OutfitEngine.build(
+        _wardrobe(),
+        occasion: 'Casual',
+        preferColor: 'Emerald',
+      )!;
+      expect(o.itemIds, contains('top-2'));
+    });
+
+    test('requiredIds pins a piece even against the occasion grain', () {
+      // The linen dress reads Smart/Summer; pinning it must still place it in a
+      // Casual look.
+      final o = OutfitEngine.build(
+        _wardrobe(),
+        occasion: 'Casual',
+        requiredIds: {'dre-1'},
+      )!;
+      expect(o.itemIds, contains('dre-1'));
+    });
   });
 
   group('RecommendationState (demo mode)', () {

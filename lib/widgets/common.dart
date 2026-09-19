@@ -4,6 +4,9 @@ import '../models/closet_item.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 
+// Radii and sans sizes below come from the VessRadius / VessType scales in
+// app_theme.dart so the shared widgets are the scale's reference adopters.
+
 /// The gradient block that stands in for garment photography.
 class Swatch extends StatelessWidget {
   const Swatch({super.key, required this.item, this.radius = 18, this.child});
@@ -35,14 +38,14 @@ class VessBackButton extends StatelessWidget {
     final t = context.vess;
     return InkWell(
       onTap: onTap ?? () => Navigator.of(context).maybePop(),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(VessRadius.sm),
       child: Container(
         width: 44,
         height: 44,
         decoration: BoxDecoration(
           color: t.card,
           border: Border.all(color: t.line),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(VessRadius.sm),
         ),
         child: Icon(Icons.chevron_left, color: t.ink, size: 22),
       ),
@@ -70,14 +73,18 @@ class AccentButton extends StatelessWidget {
     final t = context.vess;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: t.accent.withOpacity(0.28),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(VessRadius.pill),
+        // Only the enabled button carries the accent glow — a disabled button
+        // under a green halo reads as tappable when it isn't.
+        boxShadow: onTap == null
+            ? const []
+            : [
+                BoxShadow(
+                  color: t.accent.withOpacity(0.28),
+                  blurRadius: 26,
+                  offset: const Offset(0, 12),
+                ),
+              ],
       ),
       child: FilledButton(
         onPressed: onTap,
@@ -89,7 +96,7 @@ class AccentButton extends StatelessWidget {
           shape: const StadiumBorder(),
           textStyle: const TextStyle(
             fontFamily: kSans,
-            fontSize: 14.5,
+            fontSize: VessType.body,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -129,23 +136,32 @@ class VessChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.vess;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
-        decoration: BoxDecoration(
-          color: active ? t.ink : t.card,
-          border: Border.all(color: active ? t.ink : t.line),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: kSans,
-            fontSize: 12.5,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-            color: active ? t.bg : t.ink2,
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(VessRadius.pill),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+            decoration: BoxDecoration(
+              color: active ? t.ink : t.card,
+              border: Border.all(color: active ? t.ink : t.line),
+              borderRadius: BorderRadius.circular(VessRadius.pill),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: kSans,
+                fontSize: VessType.label,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                color: active ? t.bg : t.ink2,
+              ),
+            ),
           ),
         ),
       ),
@@ -159,7 +175,7 @@ class VessCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.radius = 22,
+    this.radius = VessRadius.lg,
     this.onTap,
   });
 

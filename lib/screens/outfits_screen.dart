@@ -26,9 +26,11 @@ class _OutfitsScreenState extends State<OutfitsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final w = context.read<WardrobeState>();
-      context.read<OutfitState>().seedFrom(w.items);
+      await w.load();
+      if (!mounted) return;
+      await context.read<OutfitState>().load(w.items);
     });
   }
 

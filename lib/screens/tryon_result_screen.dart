@@ -45,6 +45,7 @@ class TryOnResultScreen extends StatelessWidget {
           child: Column(
             children: [
               Expanded(child: _body(context, state)),
+              if (state.hasResult) _previewNote(context),
               const SizedBox(height: 16),
               if (state.hasResult) _actions(context, state),
             ],
@@ -109,6 +110,31 @@ class TryOnResultScreen extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Image.memory(result.resultBytes!, fit: BoxFit.cover, width: double.infinity),
+    );
+  }
+
+  /// An honest caveat. Shoppers distrust try-on renders precisely because they
+  /// assume they flatter, so Vess says plainly what the preview is — a styling
+  /// look, not a fit guarantee — and turns that honesty into a trust signal.
+  Widget _previewNote(BuildContext context) {
+    final t = context.vess;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 15, color: t.ink3),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'This is a styling preview — it shows how the look reads, not the '
+              'fit. Check your usual size before buying.',
+              style: TextStyle(
+                  fontFamily: kSans, fontSize: 12, height: 1.45, color: t.ink3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -175,7 +175,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
               children: [
                 Text('Virtual try-on', style: serif(context, 32)),
                 const SizedBox(height: 4),
-                Text('See it on you before you commit.',
+                Text('Preview how a look reads on you — styling, not sizing.',
                     style: TextStyle(fontFamily: kSans, fontSize: 13.5, color: t.ink2)),
               ],
             ),

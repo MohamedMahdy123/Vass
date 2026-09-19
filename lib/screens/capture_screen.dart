@@ -82,12 +82,24 @@ class _CaptureScreenState extends State<CaptureScreen> {
         await wardrobe.commitCaptured(d.toItem(), d.bytes);
       }
       if (!mounted) return;
+      // Drop the pieces we just saved; anything still tagging stays on-screen
+      // so a slow item never holds the whole batch hostage.
+      for (final d in ready) {
+        _drafts.remove(d);
+        d.dispose();
+      }
+      final remaining = _drafts.length;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
             content: Text('Added ${ready.length} '
-                '${ready.length == 1 ? 'piece' : 'pieces'} to your closet')));
-      Navigator.of(context).pop();
+                '${ready.length == 1 ? 'piece' : 'pieces'} to your closet'
+                '${remaining > 0 ? ' · still tagging $remaining' : ''}')));
+      if (remaining == 0) {
+        Navigator.of(context).pop();
+      } else {
+        setState(() => _saving = false);
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _saving = false);
@@ -166,15 +178,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: AccentButton(
+                        // Never block saving on a straggler: as soon as any
+                        // piece is tagged you can add it, while the rest keep
+                        // processing in the background.
                         label: _saving
                             ? 'Saving…'
-                            : anyAnalyzing
+                            : readyCount == 0
                                 ? 'Tagging…'
-                                : 'Add $readyCount to closet',
+                                : anyAnalyzing
+                                    ? 'Add $readyCount ready'
+                                    : 'Add $readyCount to closet',
                         expand: true,
-                        onTap: (_saving || anyAnalyzing || readyCount == 0)
-                            ? null
-                            : _saveAll,
+                        onTap: (_saving || readyCount == 0) ? null : _saveAll,
                       ),
                     ),
                   ],

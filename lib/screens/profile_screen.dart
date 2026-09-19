@@ -6,10 +6,32 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../widgets/common.dart';
+import 'calendar_screen.dart';
+import 'history_screen.dart';
+import 'shopping_screen.dart';
 import 'splash_screen.dart';
+import 'wishlist_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  /// Route each wardrobe row to its (now real) destination.
+  void _openMenu(BuildContext context, String title) {
+    Widget? dest;
+    if (title == 'Calendar') {
+      dest = const CalendarScreen();
+    } else if (title == 'Wishlist') {
+      dest = const WishlistScreen();
+    } else if (title == 'Shopping') {
+      dest = const ShoppingScreen();
+    } else if (title == 'History') {
+      dest = const HistoryScreen();
+    }
+    if (dest != null) {
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => dest!));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
             VessCard(
               radius: 18,
               padding: const EdgeInsets.all(15),
-              onTap: () {},
+              onTap: () => _openMenu(context, m[1] as String),
               child: Row(
                 children: [
                   Container(

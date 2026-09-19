@@ -102,15 +102,29 @@ class OutfitEngine {
     String? occasion,
     String? weather,
     Set<String> dislikedIds = const {},
+    // Constraint-based styling (the "request a look" flow): a colour to build
+    // around, and pieces that must appear in the look if at all possible.
+    String? preferColor,
+    Set<String> requiredIds = const {},
     int seed = 0,
   }) {
     final targetFormality = formality(occasion);
+    final wantColor = (preferColor ?? '').toLowerCase().trim();
 
     // Score an item for this context: lower is better. Season/formality fit,
     // freshness (avoid what was worn most / most recently), plus a stable
     // per-seed jitter so "Try again" explores other valid combinations.
     double score(Item i) {
       var s = 0.0;
+      // Pin must-include pieces to the front of their slot.
+      if (requiredIds.contains(i.id)) s -= 6;
+      // Pull the requested colour forward without forcing it.
+      if (wantColor.isNotEmpty) {
+        final c = (i.color ?? '').toLowerCase();
+        if (c.isNotEmpty && (c.contains(wantColor) || wantColor.contains(c))) {
+          s -= 2.5;
+        }
+      }
       if (!_seasonFits(i, weather)) s += 4;
       final occ = (i.occasion ?? '').toLowerCase();
       if (occ.isNotEmpty && occ != 'all') {
@@ -125,7 +139,8 @@ class OutfitEngine {
 
     final pool = items
         .where((i) => !dislikedIds.contains(i.id))
-        .where((i) => _seasonFits(i, weather))
+        // A pinned piece survives the season filter — the user asked for it.
+        .where((i) => _seasonFits(i, weather) || requiredIds.contains(i.id))
         .toList();
     // If the season filter emptied a slot we still want a look, so fall back to
     // the full (non-disliked) set when needed, per slot, below.
@@ -154,8 +169,16 @@ class OutfitEngine {
     final tops = bySlot(pool, 'Tops');
     final bottoms = bySlot(pool, 'Bottoms');
     final canSeparates = tops.isNotEmpty && bottoms.isNotEmpty;
-    final useDress = dresses.isNotEmpty &&
-        (!canSeparates || (targetFormality >= 2 && (seed % 2 == 0)));
+    // A pinned piece steers the core: a pinned dress forces a dress-led look; a
+    // pinned top or bottom keeps us on separates.
+    final requiredDress = dresses.any((d) => requiredIds.contains(d.id));
+    final requiredSeparate =
+        tops.any((i) => requiredIds.contains(i.id)) ||
+            bottoms.any((i) => requiredIds.contains(i.id));
+    final useDress = requiredDress ||
+        (!requiredSeparate &&
+            dresses.isNotEmpty &&
+            (!canSeparates || (targetFormality >= 2 && (seed % 2 == 0))));
 
     if (useDress) {
       chosen.add(dresses.first);
