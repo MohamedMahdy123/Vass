@@ -11,7 +11,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-1.5-flash";
+// gemini-1.5-flash is retired for newer API keys (404). Default to a current
+// model; if it 404s, we auto-discover a working flash model for this key.
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash";
 
 // Gemini responseSchema (OpenAPI subset): uppercase types, `nullable`, enums on
 // string items. Mirrors the attribute shape the capture flow reads.
@@ -68,29 +70,34 @@ Deno.serve(async (req) => {
     const { imageBase64, mediaType } = await req.json();
     if (!imageBase64) return json({ error: "imageBase64 is required" }, 400);
 
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-    const geminiResp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inline_data: { mime_type: mediaType ?? "image/jpeg", data: imageBase64 } },
-              { text: PROMPT },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0.2,
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inline_data: { mime_type: mediaType ?? "image/jpeg", data: imageBase64 } },
+            { text: PROMPT },
+          ],
         },
-      }),
-    });
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+        temperature: 0.2,
+      },
+    };
+
+    let geminiResp = await generate(GEMINI_MODEL, apiKey, payload);
+
+    // Self-heal a 404 (model retired / not available for this key): discover a
+    // working flash model this key actually has, then retry once.
+    if (geminiResp.status === 404) {
+      const fallback = await pickAvailableModel(apiKey);
+      if (fallback) {
+        console.warn(`gemini ${GEMINI_MODEL} 404 → retrying with ${fallback}`);
+        geminiResp = await generate(fallback, apiKey, payload);
+      }
+    }
 
     if (!geminiResp.ok) {
       const detail = await geminiResp.text();
@@ -115,6 +122,52 @@ Deno.serve(async (req) => {
     return json({ error: "Analysis failed" }, 500);
   }
 });
+
+function generate(
+  model: string,
+  apiKey: string,
+  payload: unknown,
+): Promise<Response> {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+// Ask the API which models THIS key can use and pick a vision-capable flash
+// model that supports generateContent. Preference order favours fast+free tiers.
+async function pickAvailableModel(apiKey: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const models: Array<{ name?: string; supportedGenerationMethods?: string[] }> =
+      data?.models ?? [];
+    const usable = models
+      .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+      .map((m) => (m.name ?? "").replace(/^models\//, ""))
+      .filter(Boolean);
+
+    const prefer = [
+      "gemini-2.0-flash",
+      "gemini-2.5-flash",
+      "gemini-flash-latest",
+      "gemini-2.0-flash-001",
+    ];
+    for (const p of prefer) {
+      if (usable.includes(p)) return p;
+    }
+    // Else any flash model, else any usable model at all.
+    return usable.find((m) => m.includes("flash")) ?? usable[0] ?? null;
+  } catch (_) {
+    return null;
+  }
+}
 
 // Gemini with responseMimeType=application/json returns raw JSON, but be
 // defensive: strip any ```json fences / prose the model might still add.
