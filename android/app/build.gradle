@@ -26,9 +26,11 @@ apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
+    // AGP 8 requires an explicit namespace (was the manifest `package` attribute).
+    namespace "co.vess.vess"
     // ML Kit Subject Segmentation requires compileSdk 35 (flutter_local_notifications
-    // needs 34). AGP 7.4 predates SDK 35, so android.suppressUnsupportedCompileSdk
-    // in gradle.properties silences its "untested compileSdk" hard stop.
+    // needs 34). AGP 8.1 predates SDK 35, so android.suppressUnsupportedCompileSdk
+    // in gradle.properties silences its "untested compileSdk" stop.
     compileSdkVersion 35
     ndkVersion flutter.ndkVersion
 

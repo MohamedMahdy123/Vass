@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="co.vess.vess">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Smart Outfit Scheduler reminders (flutter_local_notifications). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

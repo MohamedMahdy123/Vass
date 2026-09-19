@@ -15,12 +15,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Java 11 matches the Flutter 3.7 / AGP 7.x toolchain this project uses.
+      # Java 17 is required by AGP 8 (bumped for ML Kit's SDK 35 requirement).
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '11'
+          java-version: '17'
 
       # Pin Flutter to the exact version the app was built with (3.7.12).
       - name: Set up Flutter
