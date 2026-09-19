@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../data/models/item.dart';
 import '../services/outfit_engine.dart';
+import '../services/weather_service.dart';
 import '../state/outfit_state.dart';
 import '../state/planner_state.dart';
 import '../state/reminder_service.dart';
@@ -54,6 +55,10 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
   List<Item>? _look; // generated preview
   bool _generating = false;
 
+  final _weatherSvc = WeatherService();
+  WeatherReading? _forecast; // real forecast for _date, when 'Auto'
+  bool _loadingWeather = false;
+
   static const _monthsShort = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -70,11 +75,36 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
       context.read<WardrobeState>().load();
       // Warm up notification permissions on platforms that support them.
       context.read<ReminderService>().init();
+      _fetchForecast(); // 'Auto' by default → pull the real forecast
     });
   }
 
-  /// The engine weather string for the chosen option; 'Auto' derives from the
-  /// date's month (northern-hemisphere seasons) as an honest expected default.
+  /// Fetch the real forecast for the selected date (only while on 'Auto').
+  /// Best-effort: on failure [_forecast] stays null and we use the seasonal
+  /// estimate. Runs on open, on date change, and when the user taps 'Auto'.
+  Future<void> _fetchForecast() async {
+    if (_weather != 'Auto') return;
+    setState(() => _loadingWeather = true);
+    final f = await _weatherSvc.forecastFor(_date);
+    if (!mounted) return;
+    setState(() {
+      _forecast = f;
+      _loadingWeather = false;
+      _look = null; // weather may have changed → regenerate
+    });
+  }
+
+  /// Season-by-month estimate (northern hemisphere) — the fallback when there's
+  /// no live forecast (offline, or the date is beyond the ~16-day range).
+  String _seasonalWeather() {
+    final m = _date.month;
+    if (m == 12 || m <= 2) return 'Cold';
+    if (m >= 6 && m <= 8) return 'Warm';
+    return 'Mild';
+  }
+
+  /// The engine weather string for the chosen option. 'Auto' uses the live
+  /// forecast when available, else the seasonal estimate.
   String? get _engineWeather {
     switch (_weather) {
       case 'Warm':
@@ -84,10 +114,7 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
       case 'Mild':
         return 'Mild';
       default:
-        final m = _date.month;
-        if (m == 12 || m <= 2) return 'Cold';
-        if (m >= 6 && m <= 8) return 'Warm';
-        return 'Mild';
+        return _forecast?.engineWeather ?? _seasonalWeather();
     }
   }
 
@@ -130,6 +157,7 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
         _date = DateTime(picked.year, picked.month, picked.day);
         _look = null; // date changed -> regenerate for the new weather
       });
+      _fetchForecast(); // refresh the forecast for the new date
     }
   }
 
@@ -237,10 +265,14 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
               const SizedBox(height: 18),
 
               _label(t, 'WEATHER'),
-              _chips(_weatherOptions, _weather, (v) => setState(() {
-                    _weather = v;
-                    _look = null;
-                  })),
+              _chips(_weatherOptions, _weather, (v) {
+                setState(() {
+                  _weather = v;
+                  _look = null;
+                });
+                if (v == 'Auto') _fetchForecast();
+              }),
+              if (_weather == 'Auto') _autoWeatherLine(t),
               const SizedBox(height: 18),
 
               _label(t, 'REMIND ME'),
@@ -396,6 +428,40 @@ class _SchedulerSheetState extends State<_SchedulerSheet> {
           Text('${_look!.length} pieces · ${_occasion.toLowerCase()}',
               style: TextStyle(
                   fontFamily: kSans, fontSize: VessType.caption, color: t.ink3)),
+        ],
+      ),
+    );
+  }
+
+  /// Under the WEATHER chips when on 'Auto': show the live forecast for the
+  /// date, or an honest note that we're using a seasonal estimate.
+  Widget _autoWeatherLine(dynamic t) {
+    final IconData icon;
+    final String text;
+    if (_loadingWeather) {
+      icon = Icons.cloud_queue;
+      text = 'Checking the forecast for $_dateLabel…';
+    } else if (_forecast != null) {
+      icon = _forecast!.rain ? Icons.umbrella_outlined : Icons.wb_sunny_outlined;
+      text = 'Forecast: ${_forecast!.short}';
+    } else {
+      icon = Icons.event_outlined;
+      text = 'Seasonal estimate: ${_seasonalWeather()} '
+          '(no live forecast for that date)';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: t.accent),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text,
+                style: TextStyle(
+                    fontFamily: kSans,
+                    fontSize: VessType.caption,
+                    color: t.ink3)),
+          ),
         ],
       ),
     );
