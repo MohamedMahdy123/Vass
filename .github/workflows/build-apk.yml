@@ -40,8 +40,19 @@ jobs:
       # config wired in android/app/build.gradle, so it installs without a
       # release keystore.
       # --no-shrink skips R8 code shrinking (D8 still desugars via AGP 7.4).
+      #
+      # SUPABASE_URL / SUPABASE_ANON_KEY come from repo secrets (Settings →
+      # Secrets and variables → Actions). When set, the APK boots straight into
+      # the live backend (real Claude Vision tagging + fal.ai background removal
+      # once you sign in). When unset they pass through empty, so the build still
+      # succeeds and the app runs in keyless demo mode. The anon key is safe to
+      # ship — Row Level Security controls what it can do. Provider keys
+      # (ANTHROPIC_API_KEY, FAL_KEY) live only in Supabase secrets, never here.
       - name: Build release APK
-        run: flutter build apk --release --no-shrink
+        run: >
+          flutter build apk --release --no-shrink
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

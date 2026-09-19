@@ -4,14 +4,20 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../core/config.dart';
+import '../core/supabase_service.dart';
 
 /// Removes a garment photo's background, returning a transparent PNG.
 ///
-/// Uses the free `not-lain/background-removal` Hugging Face Space (Gradio 5).
-/// Best-effort and non-blocking: on any failure (quota, downtime, network) the
+/// Two engines, best-effort in order:
+/// 1. LIVE — the `remove-bg` Edge Function (fal.ai BiRefNet), used whenever the
+///    user is signed in. Reliable, fast, server-side key. This is the real path.
+/// 2. DEMO — the free `not-lain/background-removal` Hugging Face Space
+///    (Gradio 5), a fallback so the capture flow still cuts out backgrounds
+///    before a Supabase backend is wired up.
+///
+/// Non-blocking by contract: on any failure (quota, downtime, network) the
 /// caller keeps the original photo — background removal is an enhancement, not a
-/// gate on saving a wardrobe item. A signed-in HF token ([Config.hfToken])
-/// raises the free ZeroGPU quota; without it, anonymous runs are limited.
+/// gate on saving a wardrobe item.
 class BackgroundRemovalService {
   BackgroundRemovalService({http.Client? client, String? hfToken})
       : _client = client ?? http.Client(),
@@ -23,8 +29,40 @@ class BackgroundRemovalService {
   final http.Client _client;
   final Map<String, String> _authHeaders;
 
+  bool get _isLive =>
+      SupabaseService.isReady &&
+      SupabaseService.client.auth.currentUser != null;
+
   /// Returns the cut-out PNG bytes, or null if removal isn't available.
   Future<Uint8List?> remove(Uint8List bytes) async {
+    if (_isLive) {
+      final cut = await _removeViaFunction(bytes);
+      if (cut != null) return cut;
+      // Function unreachable/misconfigured — fall through to the demo engine
+      // rather than leaving the photo un-cut.
+    }
+    return _removeViaSpace(bytes);
+  }
+
+  /// LIVE path — fal.ai BiRefNet behind the `remove-bg` Edge Function.
+  Future<Uint8List?> _removeViaFunction(Uint8List bytes) async {
+    try {
+      final res = await SupabaseService.client.functions.invoke(
+        'remove-bg',
+        body: {'imageBase64': base64Encode(bytes), 'mediaType': 'image/jpeg'},
+      );
+      final data = res.data;
+      if (data is Map && data['imageBase64'] is String) {
+        return base64Decode(data['imageBase64'] as String);
+      }
+      return null;
+    } catch (_) {
+      return null; // best-effort — caller falls back / keeps the original
+    }
+  }
+
+  /// DEMO path — free Hugging Face Space (anonymous or HF-token quota).
+  Future<Uint8List?> _removeViaSpace(Uint8List bytes) async {
     try {
       final path = await _upload(bytes);
       final body = jsonEncode({

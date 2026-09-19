@@ -71,10 +71,21 @@ Deno.serve(async (req) => {
 
     const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
 
+    // Structured output via a forced tool call — the reliable, widely-supported
+    // way to get schema-shaped JSON out of Claude. `tool_choice` forces the model
+    // to answer by "calling" report_garment, so the response always carries a
+    // tool_use block whose `.input` already matches SCHEMA (no prose to parse).
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 512,
-      output_config: { format: { type: "json_schema", schema: SCHEMA } },
+      max_tokens: 700,
+      tools: [
+        {
+          name: "report_garment",
+          description: "Report the structured attributes of the clothing item in the photo.",
+          input_schema: SCHEMA,
+        },
+      ],
+      tool_choice: { type: "tool", name: "report_garment" },
       messages: [
         {
           role: "user",
@@ -90,21 +101,24 @@ Deno.serve(async (req) => {
             {
               type: "text",
               text:
-                "Identify this single clothing item and return its structured " +
-                "attributes. List every occasion, season and weather condition it " +
-                "genuinely suits (not just one). Give a primary colour and a " +
-                "secondary colour only if there's a clear second colour. Only " +
-                "claim a brand if it is clearly legible, else null.",
+                "Identify this single clothing item and report its structured " +
+                "attributes via the report_garment tool. List every occasion, " +
+                "season and weather condition it genuinely suits (not just one). " +
+                "Give a primary colour and a secondary colour only if there's a " +
+                "clear second colour. Only claim a brand if it is clearly legible, " +
+                "else null.",
             },
           ],
         },
       ],
     });
 
-    const textBlock = message.content.find((b: { type: string }) => b.type === "text");
-    const attributes = JSON.parse(textBlock?.text ?? "{}");
+    const toolUse = message.content.find(
+      (b: { type: string }) => b.type === "tool_use",
+    ) as { input?: Record<string, unknown> } | undefined;
+    if (!toolUse?.input) return json({ error: "No attributes returned" }, 502);
 
-    return json({ attributes });
+    return json({ attributes: toolUse.input });
   } catch (err) {
     console.error("analyze-item failed", err);
     return json({ error: "Analysis failed" }, 500);
