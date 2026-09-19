@@ -39,6 +39,12 @@ dependencies:
   supabase_flutter: ^1.10.25
   image_picker: ^1.0.4
   http: ^0.13.6
+  # On-device background removal (foreground/subject segmentation), zero API cost.
+  # Android: Google ML Kit Subject Segmentation. iOS: Apple Vision (native channel).
+  # 0.0.2 is the last release that supports Dart 2.19 (later ones require Dart 3).
+  google_mlkit_subject_segmentation: 0.0.2
+  # Alpha bounding-box detection + tight crop of the cut-out, all in Dart.
+  image: ^4.2.0
   url_launcher: ^6.1.0
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4

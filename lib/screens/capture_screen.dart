@@ -46,25 +46,44 @@ class _CaptureScreenState extends State<CaptureScreen> {
       final bytes = await f.readAsBytes();
       final draft = _Draft(bytes);
       setState(() => _drafts.add(draft));
-      _analyze(draft); // fire-and-forget; card shows progress
-      _removeBg(draft); // fire-and-forget; swaps in the cut-out when ready
+      _process(draft); // fire-and-forget; card shows progress
     }
   }
 
-  Future<void> _analyze(_Draft d) async {
+  /// On-device background removal + crop first, then AI tagging on the clean
+  /// cut-out (better accuracy than tagging a busy background). Both steps are
+  /// best-effort and never block saving.
+  Future<void> _process(_Draft d) async {
+    // 1) Local segmentation → tight transparent cut-out.
+    var imageForTagging = d.bytes;
+    var isCutout = false;
     try {
-      final attrs = await _analysis.analyze(d.bytes);
+      final outcome = await _bgRemoval.remove(d.bytes);
+      if (outcome.cutout != null) {
+        imageForTagging = outcome.cutout!;
+        isCutout = true;
+        if (mounted) setState(() => d.processedBytes = outcome.cutout);
+      } else if (outcome.failed && mounted) {
+        _toast("Couldn't isolate the item — using the original photo.");
+      }
+    } catch (_) {/* keep the original photo */}
+
+    // 2) AI tagging — on the cut-out (PNG) when we have one, else the original.
+    try {
+      final attrs = await _analysis.analyze(
+        imageForTagging,
+        mediaType: isCutout ? 'image/png' : 'image/jpeg',
+      );
       if (mounted) setState(() => d.apply(attrs));
     } catch (_) {
       if (mounted) setState(() => d.markFailed());
     }
   }
 
-  Future<void> _removeBg(_Draft d) async {
-    // Best-effort: a transparent cut-out if the engine is available, else the
-    // original photo stands. Never blocks tagging or saving.
-    final cut = await _bgRemoval.remove(d.bytes);
-    if (cut != null && mounted) setState(() => d.processedBytes = cut);
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
   }
 
   void _remove(_Draft d) {

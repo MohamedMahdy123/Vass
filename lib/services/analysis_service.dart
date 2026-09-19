@@ -12,11 +12,14 @@ class AnalysisService {
       SupabaseService.isReady &&
       SupabaseService.client.auth.currentUser != null;
 
-  Future<Map<String, dynamic>> analyze(Uint8List bytes) async {
+  Future<Map<String, dynamic>> analyze(
+    Uint8List bytes, {
+    String mediaType = 'image/jpeg',
+  }) async {
     if (isLive) {
       final res = await SupabaseService.client.functions.invoke(
         'analyze-item',
-        body: {'imageBase64': base64Encode(bytes), 'mediaType': 'image/jpeg'},
+        body: {'imageBase64': base64Encode(bytes), 'mediaType': mediaType},
       );
       final data = res.data;
       if (data is Map && data['attributes'] is Map) {
