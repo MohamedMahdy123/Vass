@@ -63,10 +63,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
         imageForTagging = outcome.cutout!;
         isCutout = true;
         if (mounted) setState(() => d.processedBytes = outcome.cutout);
-      } else if (outcome.failed && mounted) {
-        _toast("Couldn't isolate the item — using the original photo.");
+      } else if (outcome.error != null && mounted) {
+        // Show the real reason (model still downloading, no Play services, no
+        // subject, native exception) instead of a generic message.
+        _toast('Background removal: ${outcome.error}');
       }
-    } catch (_) {/* keep the original photo */}
+    } catch (e) {
+      if (mounted) _toast('Background removal crashed: $e');
+    }
 
     // 2) AI tagging — on the cut-out (PNG) when we have one, else the original.
     try {
@@ -75,8 +79,25 @@ class _CaptureScreenState extends State<CaptureScreen> {
         mediaType: isCutout ? 'image/png' : 'image/jpeg',
       );
       if (mounted) setState(() => d.apply(attrs));
-    } catch (_) {
-      if (mounted) setState(() => d.markFailed());
+      if (mounted) _reportTagging();
+    } catch (e) {
+      if (mounted) {
+        setState(() => d.markFailed());
+        _toast('Tagging failed: $e');
+      }
+    }
+  }
+
+  /// Tell the user whether tags came from the live vision API or the demo stub.
+  bool _notifiedDemo = false;
+  void _reportTagging() {
+    if (!_analysis.lastLive) {
+      if (_notifiedDemo) return; // once is enough
+      _notifiedDemo = true;
+      _toast('AI tagging is in DEMO mode (${_analysis.lastError}). '
+          'Build with Supabase keys + sign in for real tags.');
+    } else if (_analysis.lastError != null) {
+      _toast('Tagging error: ${_analysis.lastError}');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import '../core/supabase_service.dart';
 
@@ -12,28 +13,51 @@ class AnalysisService {
       SupabaseService.isReady &&
       SupabaseService.client.auth.currentUser != null;
 
+  /// Diagnostics from the most recent [analyze] call — read by the capture UI
+  /// so we can show the user exactly why tags are real vs. stubbed.
+  bool lastLive = false;
+  String? lastError;
+
   Future<Map<String, dynamic>> analyze(
     Uint8List bytes, {
     String mediaType = 'image/jpeg',
   }) async {
-    if (isLive) {
+    lastLive = isLive;
+    lastError = null;
+
+    if (!isLive) {
+      // Explain WHY we're not live, so the stub isn't mistaken for real AI.
+      final why = !SupabaseService.isReady
+          ? 'Supabase not configured (build without SUPABASE_URL/ANON_KEY)'
+          : 'not signed in';
+      lastError = 'demo mode: $why';
+      debugPrint('[analyze-item] $lastError — returning stub tags');
+      // Demo: pretend to analyze, rotating through a few plausible pieces.
+      await Future.delayed(const Duration(milliseconds: 650));
+      final stub = _demoStubs[_demoSeq++ % _demoStubs.length];
+      return Map<String, dynamic>.from(stub);
+    }
+
+    try {
       final res = await SupabaseService.client.functions.invoke(
         'analyze-item',
         body: {'imageBase64': base64Encode(bytes), 'mediaType': mediaType},
       );
       final data = res.data;
       if (data is Map && data['attributes'] is Map) {
+        debugPrint('[analyze-item] live tags received');
         return Map<String, dynamic>.from(data['attributes'] as Map);
       }
-      // Function reachable but returned an error shape — fall through to a
-      // neutral draft the user can fill in rather than blocking the save.
+      // Function reachable but returned an error shape — surface it, then fall
+      // through to a neutral draft rather than blocking the save.
+      lastError = 'edge function error: ${data is Map ? (data['error'] ?? data) : data}';
+      debugPrint('[analyze-item] $lastError');
+      return _neutral();
+    } catch (e) {
+      lastError = e.toString();
+      debugPrint('[analyze-item] invoke failed: $e');
       return _neutral();
     }
-
-    // Demo: pretend to analyze, rotating through a few plausible pieces.
-    await Future.delayed(const Duration(milliseconds: 650));
-    final stub = _demoStubs[_demoSeq++ % _demoStubs.length];
-    return Map<String, dynamic>.from(stub);
   }
 
   int _demoSeq = 0;

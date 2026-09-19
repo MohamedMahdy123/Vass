@@ -5,7 +5,7 @@ import 'bg_remover_web.dart'
 
 /// The result of an on-device background-removal attempt.
 class BgRemovalOutcome {
-  const BgRemovalOutcome({this.cutout, this.attempted = false});
+  const BgRemovalOutcome({this.cutout, this.attempted = false, this.error});
 
   /// The cropped, transparent PNG cut-out — or null if none was produced.
   final Uint8List? cutout;
@@ -13,6 +13,11 @@ class BgRemovalOutcome {
   /// True when segmentation was actually attempted on this platform
   /// (Android / iOS). False on web or desktop, where no on-device model exists.
   final bool attempted;
+
+  /// Human-readable reason removal produced no cut-out — the raw native/model
+  /// exception, or "no clear subject". Null on success or on an unsupported
+  /// platform. Surfaced to the user for diagnosis.
+  final String? error;
 
   /// Attempted but produced nothing usable (no clear foreground). The caller
   /// should keep the original photo and may tell the user.

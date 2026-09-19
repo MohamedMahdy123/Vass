@@ -38,6 +38,15 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- Ask Google Play services to download the ML Kit Subject Segmentation
+             model when the app is installed, rather than lazily on first use, so
+             background removal is ready immediately. (Subject Segmentation ships
+             its model via Play services — it can't be packaged inside the APK, so
+             a device with Play services + one network fetch is required.) -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="subject_segment" />
+
         <!-- flutter_local_notifications: deliver scheduled notifications and
              re-schedule them after a device reboot. -->
         <receiver

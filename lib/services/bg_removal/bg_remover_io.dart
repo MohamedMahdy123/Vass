@@ -33,13 +33,18 @@ class _NativeBgRemover implements BgRemover {
           ? await _segmentAndroid(bytes)
           : await _segmentIOS(bytes);
       if (foreground == null) {
-        return const BgRemovalOutcome(attempted: true); // no clear subject
+        debugPrint('[bg_removal] segmenter returned no foreground subject');
+        return const BgRemovalOutcome(
+            attempted: true, error: 'No clear subject found in the photo');
       }
       // Tight-crop in a background isolate to keep the UI smooth.
       final cropped = await compute(cropToSubject, foreground);
       return BgRemovalOutcome(cutout: cropped ?? foreground, attempted: true);
-    } catch (_) {
-      return const BgRemovalOutcome(attempted: true); // keep the original
+    } catch (e) {
+      // Surface the real reason — most often the ML Kit model is still
+      // downloading via Play services, or Play services is unavailable.
+      debugPrint('[bg_removal] failed: $e');
+      return BgRemovalOutcome(attempted: true, error: e.toString());
     }
   }
 
