@@ -11,9 +11,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// gemini-1.5-flash is retired for newer API keys (404). Default to a current
-// model; if it 404s, we auto-discover a working flash model for this key.
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash";
+// Model churn note: pinned versions (1.5/2.0/2.5-flash) get retired for new
+// users and 404 — and ListModels still lists them even when they're dead. The
+// `gemini-flash-latest` alias always resolves to the current flash model, so
+// default to it; if it ever 404s, we auto-discover from the key's model list.
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
 
 // Gemini responseSchema (OpenAPI subset): uppercase types, `nullable`, enums on
 // string items. Mirrors the attribute shape the capture flow reads.
@@ -161,11 +163,12 @@ async function pickAvailableModel(apiKey: string): Promise<string | null> {
       .map((m) => (m.name ?? "").replace(/^models\//, ""))
       .filter(Boolean);
 
+    // Prefer alias/newest models that stay available to new users; avoid the
+    // pinned 2.x-flash versions that ListModels lists but 404s on.
     const prefer = [
-      "gemini-2.0-flash",
-      "gemini-2.5-flash",
       "gemini-flash-latest",
-      "gemini-2.0-flash-001",
+      "gemini-3.6-flash",
+      "gemini-flash-lite-latest",
     ];
     for (const p of prefer) {
       if (usable.includes(p)) return p;
