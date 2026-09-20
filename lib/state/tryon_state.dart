@@ -142,10 +142,11 @@ class TryOnState extends ChangeNotifier {
       _error = e.limit != null
           ? "You've used all ${e.limit} free try-ons this month."
           : "You've reached your monthly free try-on limit.";
-    } on TryOnEngineUnavailableException {
-      _error = 'The free try-on engine is busy or over its limit right now. '
-          'Please try again in a little while — or connect the paid engine for '
-          'instant renders.';
+    } on TryOnEngineUnavailableException catch (e) {
+      _error = e.reason != null && e.reason!.isNotEmpty
+          ? 'Try-on engine: ${e.reason}. Please try again shortly.'
+          : 'The try-on engine is busy or over its limit right now. '
+              'Please try again in a little while.';
     } catch (_) {
       _error = "Try-on didn't work this time. Please try again.";
     } finally {

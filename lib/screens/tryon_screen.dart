@@ -37,6 +37,7 @@ class _Selection {
     this.bytes,
     this.imageUrl,
     this.item,
+    this.category,
   });
   final _Source source;
   final String label;
@@ -45,6 +46,30 @@ class _Selection {
   final Uint8List? bytes; // uploads carry bytes directly
   final String? imageUrl; // catalog / live closet resolve from a URL
   final Item? item; // closet items (for swatch/localBytes preview)
+  final String? category; // garment category, mapped to the FASHN category
+}
+
+/// Garment categories the try-on engine (FASHN) can actually render. Shoes and
+/// accessories aren't supported, so we keep them out of the picker.
+bool _tryOnWearable(String? category) {
+  final c = (category ?? '').toLowerCase();
+  return c != 'accessories' && c != 'footwear';
+}
+
+/// Map a Vess category to the FASHN garment category. 'auto' lets the engine
+/// guess (uploads, unknowns); an explicit category renders far more reliably.
+String _fashnCategory(String? category) {
+  switch ((category ?? '').toLowerCase()) {
+    case 'tops':
+    case 'outerwear':
+      return 'tops';
+    case 'bottoms':
+      return 'bottoms';
+    case 'dresses':
+      return 'one-pieces';
+    default:
+      return 'auto';
+  }
 }
 
 class _TryOnScreenState extends State<TryOnScreen> {
@@ -122,6 +147,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
       garmentItemId: sel.itemId,
       garmentCatalogId: sel.catalogId,
       garmentDescription: sel.label,
+      category: _fashnCategory(sel.category),
     );
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -230,9 +256,8 @@ class _TryOnScreenState extends State<TryOnScreen> {
 
   Widget _closetGrid() {
     final wardrobe = context.watch<WardrobeState>();
-    final items = wardrobe.items
-        .where((i) => (i.category ?? '').toLowerCase() != 'accessories')
-        .toList();
+    final items =
+        wardrobe.items.where((i) => _tryOnWearable(i.category)).toList();
 
     if (wardrobe.loading && items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -256,6 +281,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
                 itemId: item.id,
                 item: item,
                 imageUrl: null,
+                category: item.category,
               )),
           child: ItemImage(item: item, radius: 14),
           caption: item.name,
@@ -269,7 +295,8 @@ class _TryOnScreenState extends State<TryOnScreen> {
     if (tryOn.loadingCatalog && tryOn.catalog.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    final items = tryOn.catalog;
+    final items =
+        tryOn.catalog.where((c) => _tryOnWearable(c.category)).toList();
     if (items.isEmpty) return _hint('No catalog items yet.');
 
     final repo = TryOnRepository();
@@ -291,6 +318,7 @@ class _TryOnScreenState extends State<TryOnScreen> {
                 label: c.name,
                 catalogId: c.id,
                 imageUrl: url,
+                category: c.category,
               )),
           child: _NetImage(url: url, radius: 16),
           caption: c.priceLabel == null ? c.name : '${c.name} · ${c.priceLabel}',

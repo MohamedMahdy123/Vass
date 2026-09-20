@@ -1,5 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
 
 import '../core/supabase_service.dart';
 import 'free_tryon_service.dart';
@@ -26,9 +28,10 @@ class TryOnQuotaException implements Exception {
 /// configured and the free engine is down or over its (free-GPU) limit. The UI
 /// asks the user to try again later rather than showing a fake result.
 class TryOnEngineUnavailableException implements Exception {
-  const TryOnEngineUnavailableException();
+  const TryOnEngineUnavailableException([this.reason]);
+  final String? reason;
   @override
-  String toString() => 'TryOnEngineUnavailableException';
+  String toString() => 'TryOnEngineUnavailableException(${reason ?? ''})';
 }
 
 /// Runs a virtual try-on. It prefers the paid FASHN engine (via the `try-on`
@@ -51,17 +54,27 @@ class TryOnService {
     String category = 'auto',
     String? garmentDescription,
   }) async {
+    // A garment cut-out has a transparent background; both try-on engines expect
+    // an opaque garment and render alpha as black/garbage. Flatten onto white
+    // first (off the UI isolate). No-op for photos that are already opaque.
+    final garment = await compute(_flattenToWhite, garmentBytes);
+
+    String? liveError;
     if (isLive) {
       try {
         final res = await SupabaseService.client.functions.invoke(
           'try-on',
           body: {
             'personImageBase64': base64Encode(personBytes),
-            'garmentImageBase64': base64Encode(garmentBytes),
+            'garmentImageBase64': base64Encode(garment),
             'category': category,
           },
         );
         final data = res.data;
+        if (data is Map && data['error'] is String) {
+          liveError = data['error'] as String;
+          debugPrint('[try-on] edge error ${res.status}: $liveError');
+        }
         // 429 = monthly free limit reached: surface it, don't silently fake it.
         if (res.status == 429) {
           final d = data is Map ? data : const {};
@@ -91,14 +104,31 @@ class TryOnService {
     try {
       final bytes = await _free.render(
         personBytes: personBytes,
-        garmentBytes: garmentBytes,
+        garmentBytes: garment,
         garmentDescription: garmentDescription ?? 'a garment',
       );
       return TryOnResult(bytes: bytes, model: FreeTryOnService.engineName);
     } catch (_) {
       // Both engines unavailable — tell the user honestly instead of faking a
-      // result with their own photo.
-      throw const TryOnEngineUnavailableException();
+      // result with their own photo. Carry the live engine's reason if we have
+      // one (quota, FAL error) so the UI can be specific.
+      throw TryOnEngineUnavailableException(liveError);
     }
+  }
+}
+
+/// Composite an image onto an opaque white background. Returns re-encoded PNG
+/// bytes; if the image has no alpha (a normal photo) or can't be decoded, the
+/// original bytes are returned unchanged. Top-level for `compute`.
+Uint8List _flattenToWhite(Uint8List bytes) {
+  try {
+    final src = img.decodeImage(bytes);
+    if (src == null || !src.hasAlpha) return bytes;
+    final canvas = img.Image(width: src.width, height: src.height, numChannels: 3);
+    img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+    img.compositeImage(canvas, src); // src over white
+    return img.encodePng(canvas);
+  } catch (_) {
+    return bytes;
   }
 }
